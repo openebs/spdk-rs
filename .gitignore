@@ -1,0 +1,6 @@
+**/target
+**/*.rs.bak
+**/cscope.*
+**/rust-tags.*
+/.vagrant
+.idea
