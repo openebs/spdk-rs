@@ -336,6 +336,7 @@ impl<M: ?Sized> BdevModuleBuilder<M> {
             examine_disk: None,
             async_init: false,
             async_fini: false,
+            async_fini_start: false,
             internal: spdk_bdev_module___bdev_module_internal_fields::default(),
         });
 
