@@ -89,6 +89,7 @@ where
             write_config_json: None,
             get_spin_time: None,
             get_module_ctx: Some(inner_bdev_get_module_ctx::<BdevData>),
+            get_memory_domains: None,
         });
         self.data = Some(ctx);
         self
