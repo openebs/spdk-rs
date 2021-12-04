@@ -57,7 +57,7 @@ pub trait IoDevice: Sized {
     }
 
     /// Unregisters this I/O device from SPDK.
-    fn unregister_io_device(self: &Pin<&mut Self>) {
+    fn unregister_io_device(self: Pin<&mut Self>) {
         unsafe {
             spdk_io_device_unregister(
                 self.get_io_device_id(),

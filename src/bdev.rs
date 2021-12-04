@@ -2,6 +2,7 @@
 use std::{
     ffi::CString,
     marker::PhantomData,
+    marker::PhantomPinned,
     os::raw::c_void,
     pin::Pin,
     ptr::{null_mut, NonNull},
@@ -313,6 +314,8 @@ where
     pub(crate) fn_table: spdk_bdev_fn_table,
     /// TODO
     pub(crate) data: BdevData,
+    /// Prevent auto-Unpin.
+    pub(crate) _pin: PhantomPinned,
 }
 
 impl<BdevData> Drop for Container<BdevData>
