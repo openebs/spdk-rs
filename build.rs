@@ -1,7 +1,7 @@
 extern crate bindgen;
 extern crate cc;
 
-use crate::build_helpers::{Error, LibraryConfig};
+use crate::build_helpers::{print_path_var, Error, LibraryConfig};
 use bindgen::callbacks::{MacroParsingBehavior, ParseCallbacks};
 use std::{
     collections::HashSet,
@@ -34,6 +34,21 @@ impl ParseCallbacks for MacroCallback {
 /// Returns package's root dir.
 fn get_root_dir() -> PathBuf {
     PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+}
+
+/// Returns output dir.
+fn get_out_dir() -> PathBuf {
+    PathBuf::from(env::var("OUT_DIR").unwrap())
+}
+
+/// Returns target dir.
+fn get_target_dir() -> PathBuf {
+    let mut p = get_out_dir();
+    p.pop();
+    p.pop();
+    assert_eq!(p.file_name(), Some(OsStr::new("build")));
+    p.pop();
+    p
 }
 
 /// Returns absolute path for SPDK library.
@@ -70,6 +85,9 @@ fn get_spdk_path() -> Result<PathBuf, Error> {
 /// Finds and configures SPDK library.
 fn configure_spdk() -> Result<LibraryConfig, Error> {
     let spdk_path = get_spdk_path()?;
+
+    print_path_var("****", "PKG_CONFIG_PATH");
+    print_path_var("****", "PKG_CONFIG_PATH_FOR_TARGET");
 
     let mut spdk_lib = LibraryConfig::new();
 
@@ -146,7 +164,7 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
 
     println!("Merging SPDK static libraries into a shared library...");
     let lib_name = OsStr::new("spdk-bundle");
-    let lib_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let lib_dir = get_target_dir();
     let lib_path = spdk_lib.build_shared_lib(&lib_dir, lib_name)?;
 
     println!("cargo:rustc-link-lib=dylib={}", lib_name.to_str().unwrap());
@@ -306,7 +324,7 @@ fn main() {
         .generate()
         .expect("Unable to generate SPDK bindings");
 
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let out_path = get_out_dir();
     bindings
         .write_to_file(out_path.join("libspdk.rs"))
         .expect("Couldn't write SPDK bindings!");
