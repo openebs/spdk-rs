@@ -210,6 +210,7 @@ where
             },
             fn_table: self.fn_table.expect("Bdev function table must be set"),
             data: self.data.expect("Bdev data must be set"),
+            _pin: Default::default(),
         });
 
         // Consume the container and store a pointer to it within the
