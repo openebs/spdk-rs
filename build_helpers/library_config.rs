@@ -10,15 +10,60 @@ use std::{
     process::Command,
 };
 
-/// Appends a new path to a PATH-like environment variable.
-fn append_env_path(var_name: &OsStr, new_path: &Path) {
-    let mut lst: Vec<PathBuf> = match env::var_os(&var_name) {
+/// Returns contents of a PATH-like environment variable, or an empty vector if
+/// the variable is not defined.
+fn get_path_var<V: AsRef<OsStr>>(var_name: V) -> Vec<PathBuf> {
+    match env::var_os(&var_name) {
         Some(val) => env::split_paths(&val).collect(),
         None => Vec::new(),
-    };
+    }
+}
 
+/// Prints contents of a PATH-like environment variable.
+#[allow(dead_code)]
+pub fn print_path_var<V: AsRef<OsStr>>(prefix: &str, var: V) {
+    let svar = OsString::from(&var);
+    match env::var_os(&var) {
+        Some(s) => {
+            println!("{} {}:", prefix, svar.to_str().unwrap());
+            env::split_paths(&s).for_each(|s| {
+                println!("    {}", s.to_str().unwrap());
+            });
+        }
+        None => {
+            println!("{} {}: (undefined)", prefix, svar.to_str().unwrap());
+        }
+    }
+}
+
+/// Merges items of two PATH-like environment variables: it an item from the
+/// second variable is not found in the first one, it is appended to the end of
+/// the first. If the first one already has the same item as the second one, it
+/// is ignored. The original order of items is preserved.
+#[allow(dead_code)]
+pub fn merge_path_var<U: AsRef<OsStr>, V: AsRef<OsStr>>(first: U, second: V) {
+    let mut a = get_path_var(&first);
+    let mut ex = BTreeSet::new();
+    for p in &a {
+        ex.insert(p.clone());
+    }
+
+    for p in get_path_var(&second) {
+        if !ex.contains(&p) {
+            ex.insert(p.clone());
+            a.push(p);
+        }
+    }
+
+    let dst = env::join_paths(a).unwrap();
+    env::set_var(&first, dst);
+}
+
+/// Appends a new path to a PATH-like environment variable.
+#[allow(dead_code)]
+pub fn append_path_var<V: AsRef<OsStr>>(var_name: V, new_path: &Path) {
+    let mut lst = get_path_var(&var_name);
     lst.push(PathBuf::from(&new_path));
-
     let new = env::join_paths(lst).unwrap();
     env::set_var(&var_name, new);
 }
@@ -190,8 +235,11 @@ impl LibraryConfig {
     ) -> Result<(), Error> {
         match fs::canonicalize(&new_path) {
             Ok(cp) => {
-                println!("Added PKG_CONFIG_PATH: {}", cp.to_str().unwrap());
-                append_env_path(OsStr::new("PKG_CONFIG_PATH_FOR_TARGET"), &cp);
+                println!(
+                    "Added PKG_CONFIG_PATH_FOR_TARGET: {}",
+                    cp.to_str().unwrap()
+                );
+                append_path_var(OsStr::new("PKG_CONFIG_PATH_FOR_TARGET"), &cp);
                 Ok(())
             }
             Err(e) => Err(Error::Generic(format!(
@@ -344,7 +392,7 @@ impl LibraryConfig {
         }
     }
 
-    /// Builds a shared (.so) library from all found libraries.
+    /// Builds a shared (.so) library from all the libraries found previously.
     #[allow(dead_code)]
     pub fn build_shared_lib(
         &self,
