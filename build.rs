@@ -294,6 +294,7 @@ fn main() {
         .allowlist_function("^nvmf_tgt_accept")
         .allowlist_function("^nvme_qpair_.*")
         .allowlist_function("^nvme_ctrlr_.*")
+        .allowlist_function("^nvme_transport_qpair_.*")
         .blocklist_type("^longfunc")
         .allowlist_type("^spdk_nvme_ns_flags")
         .allowlist_type("^spdk_nvme_registered_ctrlr.*")
