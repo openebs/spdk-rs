@@ -123,7 +123,7 @@ extern "C" {
         line: i32,
         func: *const c_char,
         format: *const c_char,
-        args: libspdk::__va_list,
+        args: libspdk::va_list,
     );
 
     /// TODO
