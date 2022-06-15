@@ -135,7 +135,7 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
         "spdk_accel",
         "spdk_accel_ioat",
         "spdk_bdev_aio",
-    #[cfg(target_arch = "x86_64")]
+        #[cfg(target_arch = "x86_64")]
         "spdk_bdev_crypto",
         "spdk_bdev_delay",
         "spdk_bdev_error",
