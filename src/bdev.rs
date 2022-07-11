@@ -57,6 +57,8 @@ where
     _data: PhantomData<BdevData>,
 }
 
+unsafe impl<T: BdevOps> Send for Bdev<T> {}
+
 impl<BdevData> Bdev<BdevData>
 where
     BdevData: BdevOps,
