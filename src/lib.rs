@@ -49,7 +49,7 @@ pub use crate::{
     bdev::Bdev,
     bdev_async::{BdevAsyncCallContext, BdevStats},
     bdev_builder::BdevBuilder,
-    bdev_desc::{BdevDesc, BdevEvent},
+    bdev_desc::{BdevDesc, BdevEvent, LbaRange, LbaRangeLock},
     bdev_io::{BdevIo, IoVec},
     bdev_iter::{BdevGlobalIter, BdevModuleIter},
     bdev_module::{

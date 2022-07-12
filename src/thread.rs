@@ -229,6 +229,12 @@ impl Thread {
     }
 
     /// TODO
+    pub fn is_spdk_thread() -> bool {
+        let thread = unsafe { spdk_get_thread() };
+        return !thread.is_null();
+    }
+
+    /// TODO
     pub fn from_ptr(ptr: *mut spdk_thread) -> Self {
         Self {
             inner: NonNull::new(ptr).unwrap(),
