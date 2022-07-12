@@ -3,12 +3,14 @@ use std::{marker::PhantomData, os::raw::c_void, ptr::NonNull};
 
 use crate::{
     ffihelper::{errno_error, ErrnoResult, IntoCString},
+    io_channel::IoChannelGuard,
     libspdk::{
         spdk_bdev,
         spdk_bdev_close,
         spdk_bdev_desc,
         spdk_bdev_desc_get_bdev,
         spdk_bdev_event_type,
+        spdk_bdev_get_io_channel,
         spdk_bdev_open_ext,
         SPDK_BDEV_EVENT_MEDIA_MANAGEMENT,
         SPDK_BDEV_EVENT_REMOVE,
@@ -35,7 +37,7 @@ where
     _data: PhantomData<BdevData>,
 }
 
-// TODO: is `BdevDesc` really a Sync/Send type?
+// TODO: is `BdevDesc` really a Sync type?
 unsafe impl<T: BdevOps> Sync for BdevDesc<T> {}
 unsafe impl<T: BdevOps> Send for BdevDesc<T> {}
 
@@ -88,12 +90,28 @@ where
         }
     }
 
-    /// TODO
     /// Returns a Bdev associated with this descriptor.
     /// A descriptor cannot exist without a Bdev.
     pub fn bdev(&self) -> Bdev<BdevData> {
         let b = unsafe { spdk_bdev_desc_get_bdev(self.as_ptr()) };
         Bdev::from_inner_ptr(b)
+    }
+
+    /// Returns a channel to the underlying Bdev.
+    pub fn get_io_channel(
+        &self,
+    ) -> Option<IoChannelGuard<BdevData::ChannelData>> {
+        let ch = unsafe { spdk_bdev_get_io_channel(self.as_ptr()) };
+        if ch.is_null() {
+            // TODO: error message
+            error!(
+                "Failed to get IO channel for {}, probably low on memory!",
+                self.bdev().name(),
+            );
+            None
+        } else {
+            Some(IoChannelGuard::from_ptr(ch))
+        }
     }
 
     /// Returns a pointer to the underlying `spdk_bdev_desc` structure.

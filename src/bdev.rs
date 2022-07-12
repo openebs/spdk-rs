@@ -123,6 +123,7 @@ where
     pub fn name(&self) -> &str {
         self.as_inner_ref().name.as_str()
     }
+
     /// Returns the configured product name.
     pub fn product_name(&self) -> &str {
         self.as_inner_ref().product_name.as_str()
