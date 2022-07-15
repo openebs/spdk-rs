@@ -257,10 +257,10 @@ where
     }
 
     /// Returns a reference to a data object associated with this Bdev.
-    pub fn data<'a>(&self) -> Pin<&'a BdevData> {
+    pub fn data<'a>(&self) -> &'a BdevData {
         unsafe {
             let c = self.as_inner_ref().ctxt as *const Container<BdevData>;
-            Pin::new_unchecked(&(*c).data)
+            &(*c).data
         }
     }
 
