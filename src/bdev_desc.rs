@@ -1,5 +1,5 @@
 use futures::channel::oneshot;
-///! TODO
+use snafu::Snafu;
 use std::{marker::PhantomData, os::raw::c_void, ptr::NonNull};
 
 use crate::{
@@ -22,6 +22,23 @@ use crate::{
     Bdev,
     BdevOps,
 };
+
+/// Bdev descriptor errors.
+#[derive(Debug, Snafu, Clone)]
+pub enum BdevDescError {
+    #[snafu(display("Failed to get I/O channel for '{}'", bdev_name))]
+    GetIOChannel { bdev_name: String },
+    #[snafu(display("Failed to lock LBA range for '{}'", bdev_name))]
+    LbaLock {
+        source: nix::errno::Errno,
+        bdev_name: String,
+    },
+    #[snafu(display("Failed to unlock LBA range for '{}'", bdev_name))]
+    LbaUnlock {
+        source: nix::errno::Errno,
+        bdev_name: String,
+    },
+}
 
 /// Wrapper for `spdk_bdev_desc`.
 ///
@@ -112,17 +129,20 @@ where
     }
 
     /// Returns a channel to the underlying Bdev.
-    pub fn io_channel(&self) -> Option<IoChannelGuard<BdevData::ChannelData>> {
+    pub fn io_channel(
+        &self,
+    ) -> Result<IoChannelGuard<BdevData::ChannelData>, BdevDescError> {
         let ch = unsafe { spdk_bdev_get_io_channel(self.as_ptr()) };
         if ch.is_null() {
-            // TODO: error message
             error!(
-                "Failed to get IO channel for {}, probably low on memory!",
+                "BdevDesc '{}': failed to get IO channel",
                 self.bdev().name(),
             );
-            None
+            Err(BdevDescError::GetIOChannel {
+                bdev_name: self.bdev().name().to_owned(),
+            })
         } else {
-            Some(IoChannelGuard::from_ptr(ch))
+            Ok(IoChannelGuard::from_ptr(ch))
         }
     }
 
@@ -131,13 +151,12 @@ where
     pub async fn lock_lba_range(
         &self,
         range: LbaRange,
-    ) -> Result<LbaRangeLock<BdevData>, nix::errno::Errno> {
+    ) -> Result<LbaRangeLock<BdevData>, BdevDescError> {
         let (s, r) = oneshot::channel::<i32>();
 
         let ctx = Box::new(LockContext {
-            offset: range.offset,
-            len: range.len,
-            ch: self.io_channel().unwrap(),
+            range,
+            ch: self.io_channel()?,
             sender: Some(s),
         });
 
@@ -145,20 +164,26 @@ where
             let rc = bdev_lock_lba_range(
                 self.as_ptr(),
                 ctx.ch.legacy_as_ptr(),
-                ctx.offset,
-                ctx.len,
-                Some(LockContext::<BdevData>::lock_completion_cb),
+                ctx.range.offset,
+                ctx.range.len,
+                Some(LockContext::<BdevData>::lba_op_completion_cb),
                 ctx.as_ref() as *const _ as *mut c_void,
             );
             if rc != 0 {
-                return Err(nix::errno::from_i32(rc));
+                return Err(BdevDescError::LbaLock {
+                    source: nix::errno::from_i32(rc),
+                    bdev_name: self.bdev().name().to_owned(),
+                });
             }
         }
 
         // Wait for the lock to complete
         let rc = r.await.unwrap();
         if rc != 0 {
-            return Err(nix::errno::from_i32(rc));
+            return Err(BdevDescError::LbaLock {
+                source: nix::errno::from_i32(rc),
+                bdev_name: self.bdev().name().to_owned(),
+            });
         }
 
         Ok(LbaRangeLock {
@@ -170,7 +195,7 @@ where
     pub async fn unlock_lba_range(
         &self,
         mut lock: LbaRangeLock<BdevData>,
-    ) -> Result<(), nix::errno::Errno> {
+    ) -> Result<(), BdevDescError> {
         let (s, r) = oneshot::channel::<i32>();
         lock.ctx.sender = Some(s);
 
@@ -178,20 +203,26 @@ where
             let rc = bdev_unlock_lba_range(
                 self.as_ptr(),
                 lock.ctx.ch.legacy_as_ptr(),
-                lock.ctx.offset,
-                lock.ctx.len,
-                Some(LockContext::<BdevData>::lock_completion_cb),
+                lock.ctx.range.offset,
+                lock.ctx.range.len,
+                Some(LockContext::<BdevData>::lba_op_completion_cb),
                 lock.ctx.as_ref() as *const _ as *mut c_void,
             );
             if rc != 0 {
-                return Err(nix::errno::from_i32(rc));
+                return Err(BdevDescError::LbaUnlock {
+                    source: nix::errno::from_i32(rc),
+                    bdev_name: self.bdev().name().to_owned(),
+                });
             }
         }
 
         // Wait for the unlock to complete
         let rc = r.await.unwrap();
         if rc != 0 {
-            return Err(nix::errno::from_i32(rc));
+            return Err(BdevDescError::LbaUnlock {
+                source: nix::errno::from_i32(rc),
+                bdev_name: self.bdev().name().to_owned(),
+            });
         }
 
         Ok(())
@@ -298,7 +329,7 @@ unsafe extern "C" fn inner_bdev_event_cb<BdevData>(
     (ctx)(event.into(), Bdev::<BdevData>::from_inner_ptr(bdev));
 }
 
-/// TODO
+/// LBA range for locking.
 pub struct LbaRange {
     pub offset: u64,
     pub len: u64,
@@ -314,16 +345,15 @@ impl LbaRange {
     }
 }
 
-/// TODO
+/// LBA locking internal context.
 struct LockContext<T: BdevOps> {
-    offset: u64,
-    len: u64,
+    range: LbaRange,
     ch: IoChannelGuard<T::ChannelData>,
     sender: Option<oneshot::Sender<i32>>,
 }
 
 impl<T: BdevOps> LockContext<T> {
-    unsafe extern "C" fn lock_completion_cb(
+    unsafe extern "C" fn lba_op_completion_cb(
         ctx: *mut ::std::os::raw::c_void,
         status: ::std::os::raw::c_int,
     ) {
@@ -337,6 +367,9 @@ impl<T: BdevOps> LockContext<T> {
     }
 }
 
+/// LBA lock object returned by BdevDesc::lock_lba_range() method.
+/// To unlock the range, BdevDesc::unlock_lba_range() method must be called,
+/// passing this lock object.
 pub struct LbaRangeLock<T: BdevOps> {
     ctx: Box<LockContext<T>>,
 }
