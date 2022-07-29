@@ -57,6 +57,8 @@ where
     _data: PhantomData<BdevData>,
 }
 
+unsafe impl<T: BdevOps> Send for Bdev<T> {}
+
 impl<BdevData> Bdev<BdevData>
 where
     BdevData: BdevOps,
@@ -121,6 +123,7 @@ where
     pub fn name(&self) -> &str {
         self.as_inner_ref().name.as_str()
     }
+
     /// Returns the configured product name.
     pub fn product_name(&self) -> &str {
         self.as_inner_ref().product_name.as_str()
@@ -254,10 +257,10 @@ where
     }
 
     /// Returns a reference to a data object associated with this Bdev.
-    pub fn data<'a>(&self) -> Pin<&'a BdevData> {
+    pub fn data<'a>(&self) -> &'a BdevData {
         unsafe {
             let c = self.as_inner_ref().ctxt as *const Container<BdevData>;
-            Pin::new_unchecked(&(*c).data)
+            &(*c).data
         }
     }
 

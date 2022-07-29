@@ -4,7 +4,7 @@ use snafu::Snafu;
 
 /// Errors for SPDK wrappers.
 #[derive(Debug, Snafu)]
-#[snafu(visibility = "pub")]
+#[snafu(visibility(pub), context(suffix(false)), module(spdk_error))]
 pub enum SpdkError {
     #[snafu(display("Bdev module '{}' does not exist", name))]
     BdevModuleNotFound { name: String },

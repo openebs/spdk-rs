@@ -21,7 +21,7 @@ pkg-config = "0.3.22"
 futures = "0.3.16"
 nix = "0.22.1"
 serde_json = "1.0.66"
-snafu = "0.6.10"
+snafu = "0.7.1"
 tracing = "0.1.26"
 
 [dependencies.serde]
