@@ -63,7 +63,7 @@ pub use crate::{
     },
     bdev_ops::BdevOps,
     dma::{DmaBuf, DmaError},
-    error::{SpdkError, SpdkResult},
+    error::{spdk_error, SpdkError, SpdkResult},
     io_channel::{IoChannel, IoChannelGuard},
     io_device_traverse::{ChannelTraverseStatus, IoDeviceChannelTraverse},
     io_devices::IoDevice,
