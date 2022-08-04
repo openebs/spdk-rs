@@ -17,7 +17,7 @@ use crate::libspdk::{
 /// # Generic Arguments
 ///
 /// * `T`: user-defined channel data owned by this channel.
-#[derive(Debug)]
+#[derive(Copy, Debug)]
 pub struct IoChannel<T> {
     /// TODO
     inner: NonNull<spdk_io_channel>,

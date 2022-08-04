@@ -54,7 +54,7 @@ pub enum BdevDescError {
 /// # Generic Arguments
 ///
 /// * `BdevData`: TODO
-#[derive(Debug)]
+#[derive(Copy, Debug)]
 pub struct BdevDesc<BdevData>
 where
     BdevData: BdevOps,
