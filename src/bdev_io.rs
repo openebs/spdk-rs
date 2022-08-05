@@ -30,6 +30,7 @@ pub type IoVec = crate::libspdk::iovec;
 /// # Generic Arguments
 ///
 /// * `BdevData`: TODO
+#[derive(Copy)]
 pub struct BdevIo<BdevData>
 where
     BdevData: BdevOps,

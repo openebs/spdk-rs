@@ -47,6 +47,7 @@ use crate::{
 /// # Generic Arguments
 ///
 /// * `BdevData`: TODO
+#[derive(Copy)]
 pub struct Bdev<BdevData>
 where
     BdevData: BdevOps,
