@@ -1,37 +1,68 @@
 ///! TODO
-use crate::libspdk::{spdk_bdev_io, spdk_bdev_io_get_nvme_status};
-
-/// TODO
-#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
-pub enum StatusCodeType {
-    GenericCommandStatus,
-    CommandSpecificStatus,
-    MediaDataIntegrityErrors,
-    Reserved,
-    VendorSpecific,
-}
-
-use StatusCodeType::{
-    CommandSpecificStatus,
-    GenericCommandStatus,
-    MediaDataIntegrityErrors,
-    Reserved,
-    VendorSpecific,
+use crate::libspdk::{
+    spdk_bdev_io,
+    spdk_bdev_io_get_nvme_status,
+    spdk_nvme_cpl,
 };
 
-impl From<i32> for StatusCodeType {
-    fn from(i: i32) -> Self {
-        match i {
-            0x00 => GenericCommandStatus,
-            0x01 => CommandSpecificStatus,
-            0x02 => MediaDataIntegrityErrors,
-            0x07 => VendorSpecific,
-            _ => Reserved,
+/// Corresponds to `spdk_nvme_status`, `spdk_nvme_status_code_type`.
+#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
+pub enum NvmeStatus {
+    Generic(GenericStatusCode),
+    CommandSpecific(CommandSpecificStatusCode),
+    MediaError(MediaErrorStatusCode),
+    Path(PathStatusCode),
+    VendorSpecific(i32),
+    Reserved(i32),
+    Unknown(i32),
+}
+
+impl From<(i32, i32)> for NvmeStatus {
+    fn from(s: (i32, i32)) -> Self {
+        let sct = s.0;
+        let sc = s.1;
+
+        match sct {
+            0x00 => Self::Generic(GenericStatusCode::from(sc)),
+            0x01 => Self::CommandSpecific(CommandSpecificStatusCode::from(sc)),
+            0x02 => Self::MediaError(MediaErrorStatusCode::from(sc)),
+            0x03 => Self::Path(PathStatusCode::from(sc)),
+            0x04 | 0x05 | 0x06 => Self::Reserved(sc),
+            0x07 => Self::VendorSpecific(sc),
+            _ => Self::Unknown(sc),
         }
     }
 }
 
-/// TODO
+impl From<*mut spdk_bdev_io> for NvmeStatus {
+    fn from(b: *mut spdk_bdev_io) -> Self {
+        let mut cdw0: u32 = 0;
+        let mut sct: i32 = 0;
+        let mut sc: i32 = 0;
+
+        unsafe { spdk_bdev_io_get_nvme_status(b, &mut cdw0, &mut sct, &mut sc) }
+
+        Self::from((sct, sc))
+    }
+}
+
+impl From<*const spdk_nvme_cpl> for NvmeStatus {
+    fn from(cpl: *const spdk_nvme_cpl) -> Self {
+        let (r) = unsafe {
+            let cplr = &*cpl;
+
+            (
+                cplr.__bindgen_anon_1.status.sct().into(),
+                cplr.__bindgen_anon_1.status.sc().into(),
+            )
+        };
+
+        Self::from(r)
+    }
+}
+
+/// Generic command status codes.
+/// Corresponds to `spdk_nvme_generic_command_status_code`.
 #[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum GenericStatusCode {
@@ -71,16 +102,6 @@ pub enum GenericStatusCode {
     NamespaceNotReady,
     ReservationConflict,
     FormatInProgress,
-    Reserved,
-}
-
-/// TODO
-#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
-pub enum NvmeCommandStatus {
-    CommandSpecificStatus,
-    GenericCommandStatus(GenericStatusCode),
-    MediaDataIntegrityErrors,
-    VendorSpecific,
     Reserved,
 }
 
@@ -132,41 +153,161 @@ impl From<i32> for GenericStatusCode {
     }
 }
 
-/// TODO
-#[derive(Debug)]
-pub struct NvmeStatus {
-    /// NVMe completion queue entry.
-    cdw0: u32,
-    /// NVMe status code type.
-    sct: StatusCodeType,
-    /// NVMe status code.
-    sc: GenericStatusCode,
+/// Command specific status codes.
+/// Corresponds to `spdk_nvme_command_specific_status_code`.
+#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
+pub enum CommandSpecificStatusCode {
+    CompletionQueueInvalid,
+    InvalidQueueIdentifier,
+    InvalidQueueSize,
+    AbortCommandLimitExceeded,
+    AsyncEventRequestLimitExceeded,
+    InvalidFirmwareSlot,
+    InvalidFirmwareImage,
+    InvalidInterruptVector,
+    InvalidLogPage,
+    InvalidFormat,
+    FirmwareReqConventionalReset,
+    InvalidQueueDeletion,
+    FeatureIdNotSaveable,
+    FeatureNotChangeable,
+    FeatureNotNamespaceSpecific,
+    FirmwareReqNvmReset,
+    FirmwareReqReset,
+    FirmwareReqMaxTimeViolation,
+    FirmwareActivationProhibited,
+    OverlappingRange,
+    NamespaceInsufficientCapacity,
+    NamespaceIdUnavailable,
+    NamespaceAlreadyAttached,
+    NamespaceIsPrivate,
+    NamespaceNotAttached,
+    ThinprovisioningNotSupported,
+    ControllerListInvalid,
+    DeviceSelfTestInProgress,
+    BootPartitionWriteProhibited,
+    InvalidCtrlrId,
+    InvalidSecondaryCtrlrState,
+    InvalidNumCtrlrResources,
+    InvalidResourceId,
+    IocsNotSupported,
+    IocsNotEnabled,
+    IocsCombinationRejected,
+    InvalidIocs,
+    StreamResourceAllocationFailed,
+    ConflictingAttributes,
+    InvalidProtectionInfo,
+    AttemptedWriteToRoRange,
+    CmdSizeLimitSizeExceeded,
+    Unknown,
 }
 
-impl NvmeStatus {
-    /// TODO
-    pub fn status_code(&self) -> GenericStatusCode {
-        self.sc
-    }
-
-    /// TODO
-    pub fn status_type(&self) -> StatusCodeType {
-        self.sct
+impl From<i32> for CommandSpecificStatusCode {
+    fn from(i: i32) -> Self {
+        match i {
+            0x00 => Self::CompletionQueueInvalid,
+            0x01 => Self::InvalidQueueIdentifier,
+            0x02 => Self::InvalidQueueSize,
+            0x03 => Self::AbortCommandLimitExceeded,
+            0x05 => Self::AsyncEventRequestLimitExceeded,
+            0x06 => Self::InvalidFirmwareSlot,
+            0x07 => Self::InvalidFirmwareImage,
+            0x08 => Self::InvalidInterruptVector,
+            0x09 => Self::InvalidLogPage,
+            0x0a => Self::InvalidFormat,
+            0x0b => Self::FirmwareReqConventionalReset,
+            0x0c => Self::InvalidQueueDeletion,
+            0x0d => Self::FeatureIdNotSaveable,
+            0x0e => Self::FeatureNotChangeable,
+            0x0f => Self::FeatureNotNamespaceSpecific,
+            0x10 => Self::FirmwareReqNvmReset,
+            0x11 => Self::FirmwareReqReset,
+            0x12 => Self::FirmwareReqMaxTimeViolation,
+            0x13 => Self::FirmwareActivationProhibited,
+            0x14 => Self::OverlappingRange,
+            0x15 => Self::NamespaceInsufficientCapacity,
+            0x16 => Self::NamespaceIdUnavailable,
+            0x18 => Self::NamespaceAlreadyAttached,
+            0x19 => Self::NamespaceIsPrivate,
+            0x1a => Self::NamespaceNotAttached,
+            0x1b => Self::ThinprovisioningNotSupported,
+            0x1c => Self::ControllerListInvalid,
+            0x1d => Self::DeviceSelfTestInProgress,
+            0x1e => Self::BootPartitionWriteProhibited,
+            0x1f => Self::InvalidCtrlrId,
+            0x20 => Self::InvalidSecondaryCtrlrState,
+            0x21 => Self::InvalidNumCtrlrResources,
+            0x22 => Self::InvalidResourceId,
+            0x29 => Self::IocsNotSupported,
+            0x2a => Self::IocsNotEnabled,
+            0x2b => Self::IocsCombinationRejected,
+            0x2c => Self::InvalidIocs,
+            0x7f => Self::StreamResourceAllocationFailed,
+            0x80 => Self::ConflictingAttributes,
+            0x81 => Self::InvalidProtectionInfo,
+            0x82 => Self::AttemptedWriteToRoRange,
+            0x83 => Self::CmdSizeLimitSizeExceeded,
+            _ => Self::Unknown,
+        }
     }
 }
 
-impl From<*mut spdk_bdev_io> for NvmeStatus {
-    fn from(b: *mut spdk_bdev_io) -> Self {
-        let mut cdw0: u32 = 0;
-        let mut sct: i32 = 0;
-        let mut sc: i32 = 0;
+/// Media error status codes
+/// Corresponds to `spdk_nvme_media_error_status_code`.
+#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
+pub enum MediaErrorStatusCode {
+    WriteFaults,
+    UnrecoveredReadError,
+    GuardCheckError,
+    ApplicationTagCheckError,
+    ReferenceTagCheckError,
+    CompareFailure,
+    AccessDenied,
+    DeallocatedOrUnwrittenBlock,
+    Unknown,
+}
 
-        unsafe { spdk_bdev_io_get_nvme_status(b, &mut cdw0, &mut sct, &mut sc) }
+impl From<i32> for MediaErrorStatusCode {
+    fn from(i: i32) -> Self {
+        match i {
+            0x80 => Self::WriteFaults,
+            0x81 => Self::UnrecoveredReadError,
+            0x82 => Self::GuardCheckError,
+            0x83 => Self::ApplicationTagCheckError,
+            0x84 => Self::ReferenceTagCheckError,
+            0x85 => Self::CompareFailure,
+            0x86 => Self::AccessDenied,
+            0x87 => Self::DeallocatedOrUnwrittenBlock,
+            _ => Self::Unknown,
+        }
+    }
+}
 
-        Self {
-            cdw0,
-            sct: StatusCodeType::from(sct),
-            sc: GenericStatusCode::from(sc),
+/// Path related status codes.
+/// Corresponds to `spdk_nvme_path_status_code`.
+#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
+pub enum PathStatusCode {
+    InternalPathError,
+    AsymmetricAccessPersistentLoss,
+    AsymmetricAccessInaccessible,
+    AsymmetricAccessTransition,
+    ControllerPathError,
+    HostPathError,
+    AbortedByHost,
+    Unknown,
+}
+
+impl From<i32> for PathStatusCode {
+    fn from(i: i32) -> Self {
+        match i {
+            0x00 => Self::InternalPathError,
+            0x01 => Self::AsymmetricAccessPersistentLoss,
+            0x02 => Self::AsymmetricAccessInaccessible,
+            0x03 => Self::AsymmetricAccessTransition,
+            0x60 => Self::ControllerPathError,
+            0x70 => Self::HostPathError,
+            0x71 => Self::AbortedByHost,
+            _ => Self::Unknown,
         }
     }
 }
@@ -226,33 +367,4 @@ pub mod nvme_reservation_acquire_action {
     pub const ACQUIRE: u8 = 0x0;
     pub const PREEMPT: u8 = 0x1;
     pub const PREEMPT_ABORT: u8 = 0x2;
-}
-
-impl NvmeCommandStatus {
-    /// TODO
-    pub fn from_command_status_raw(sct: i32, sc: i32) -> Self {
-        match StatusCodeType::from(sct) {
-            CommandSpecificStatus => Self::CommandSpecificStatus,
-            GenericCommandStatus => {
-                Self::GenericCommandStatus(GenericStatusCode::from(sc))
-            }
-            MediaDataIntegrityErrors => Self::MediaDataIntegrityErrors,
-            VendorSpecific => Self::VendorSpecific,
-            _ => Self::Reserved,
-        }
-    }
-
-    /// TODO
-    pub fn from_command_status(
-        sct: StatusCodeType,
-        sc: GenericStatusCode,
-    ) -> Self {
-        match sct {
-            CommandSpecificStatus => Self::CommandSpecificStatus,
-            GenericCommandStatus => Self::GenericCommandStatus(sc),
-            MediaDataIntegrityErrors => Self::MediaDataIntegrityErrors,
-            VendorSpecific => Self::VendorSpecific,
-            _ => Self::Reserved,
-        }
-    }
 }
