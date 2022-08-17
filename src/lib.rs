@@ -77,7 +77,6 @@ pub use crate::{
         nvme_reservation_register_cptpl,
         nvme_reservation_type,
         GenericStatusCode,
-        NvmeCommandStatus,
         NvmeStatus,
     },
     poller::{Poller, PollerBuilder},
