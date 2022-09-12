@@ -34,6 +34,13 @@ use crate::{
         spdk_bdev_unregister,
         SPDK_BDEV_CLAIM_EXCL_WRITE,
         SPDK_BDEV_CLAIM_NONE,
+        spdk_bdev_is_zoned,
+        spdk_bdev_get_zone_size,
+        spdk_bdev_get_num_zones,
+        spdk_bdev_get_max_zone_append_size,
+        spdk_bdev_get_max_open_zones,
+        spdk_bdev_get_max_active_zones,
+        spdk_bdev_get_optimal_open_zones,
     },
     BdevIo,
     BdevModule,
@@ -303,8 +310,49 @@ where
         }
     }
 
+    /// Returns true if this Bdev supports the ZNS command set.
+    pub fn is_zoned(&self) -> bool {
+        unsafe { spdk_bdev_is_zoned(self.unsafe_inner_ptr()) }
+    }
+
+    /// Get device zone size in logical blocks.
+    pub fn zone_size(&self) -> u64 {
+        unsafe { spdk_bdev_get_zone_size(self.unsafe_inner_ptr()) }
+    }
+
+    /// Get the number of zones for the given device.
+    pub fn num_zones(&self) -> u64 {
+        unsafe { spdk_bdev_get_num_zones(self.unsafe_inner_ptr()) }
+    }
+
+    /// Get device maximum zone append data transfer size in logical blocks.
+    pub fn max_zone_append_size(&self) -> u32 {
+        unsafe { spdk_bdev_get_max_zone_append_size(self.unsafe_inner_ptr()) }
+    }
+
+    /// Get device maximum number of open zones.
+    pub fn max_open_zones(&self) -> u32 {
+        unsafe { spdk_bdev_get_max_open_zones(self.unsafe_inner_ptr()) }
+    }
+
+    /// Get device maximum number of active zones.
+    pub fn max_active_zones(&self) -> u32 {
+        unsafe { spdk_bdev_get_max_active_zones(self.unsafe_inner_ptr()) }
+    }
+
+    /// Get device optimal number of open zones.
+    pub fn optimal_open_zones(&self) -> u32 {
+        unsafe { spdk_bdev_get_optimal_open_zones(self.unsafe_inner_ptr()) }
+    }
+
     /// Determines whenever the Bdev supports the requested I/O type.
     pub fn io_type_supported(&self, io_type: IoType) -> bool {
+        if self.is_zoned() && io_type == IoType::ZoneAppend {
+            // Always claiming to support zone append such that the exposed
+            // NVMe-oF nexus is not set to read only by the kernel. The nexus
+            // logic strictly rejects zone append commands.
+            return true;
+        }
         unsafe {
             spdk_bdev_io_type_supported(self.as_inner_ptr(), io_type.into())
         }
@@ -473,4 +521,36 @@ where
     pub(crate) fn from_ptr_mut<'a>(ctx: *mut c_void) -> Pin<&'a mut Self> {
         unsafe { Pin::new_unchecked(&mut *(ctx as *mut Self)) }
     }
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq)]
+pub struct BdevZoneInfo {
+    /// Indicated if the device to which this ZoneInfo is linked to is a
+    /// zoned block device (ZBD) or not. If true, the following fields are
+    /// also relavant.
+    pub zoned: bool,
+    /// Number of zones available on the device.
+    pub num_zones: u64,
+    /// Size of each zone (in blocks). Typically alligned to a power of 2.
+    /// In SPDK the actuall writable zone capacity has to be queried for each
+    /// individual zone through a zone report.
+    /// zone_capacity <= zone_size.
+    /// zone_capacity * num_zones = device capacity
+    pub zone_size: u64,
+    /// Maximum data transfer size for a single zone append command (in blocks).
+    /// Normal (seq) writes must respect the device's general max transfer size.
+    pub max_zone_append_size: u32,
+    /// Maximum number of open zones for a given device.
+    /// This essentially limits the amount of parallel open zones that can be written to.
+    /// Refere to NVMe ZNS specification (Figure 7 Zone State Machine) for more details.
+    /// https://nvmexpress.org/wp-content/uploads/NVM-Express-Zoned-Namespace-Command-Set-Specification-1.1d-2023.12.28-Ratified.pdf
+    pub max_open_zones: u32,
+    /// Maximum number of active zones for a given device.
+    /// max_open_zones is a subset of max_active_zones. Closed zones are still active until they
+    /// get finished (finished zones are in effect immutabel until reset).
+    /// Refere to NVMe ZNS specification (Figure 7 Zone State Machine) for more details.
+    /// https://nvmexpress.org/wp-content/uploads/NVM-Express-Zoned-Namespace-Command-Set-Specification-1.1d-2023.12.28-Ratified.pdf
+    pub max_active_zones: u32,
+    /// The drives prefered number of open zones.
+    pub optimal_open_zones: u32,
 }

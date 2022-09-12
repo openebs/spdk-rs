@@ -49,7 +49,7 @@ mod untyped_bdev;
 mod uuid;
 
 pub use crate::{
-    bdev::Bdev,
+    bdev::{Bdev, BdevZoneInfo},
     bdev_async::{BdevAsyncCallContext, BdevStats},
     bdev_builder::BdevBuilder,
     bdev_desc::{BdevDesc, BdevDescError, BdevEvent, LbaRange, LbaRangeLock},

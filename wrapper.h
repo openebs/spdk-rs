@@ -24,6 +24,8 @@
 #include <spdk/lvol.h>
 #include <spdk/nbd.h>
 #include <spdk/nvme.h>
+#include <spdk/nvme_zns.h>
+#include <spdk/nvme_spec.h>
 #include <nvme/nvme_internal.h>
 #include <spdk/nvmf.h>
 #include <nvmf/nvmf_internal.h>

@@ -2,7 +2,7 @@
 use std::{ffi::CString, os::raw::c_void, ptr::null_mut};
 
 use crate::{
-    bdev::Container,
+    bdev::{BdevZoneInfo, Container},
     ffihelper::IntoCString,
     libspdk::{
         spdk_bdev,
@@ -48,6 +48,13 @@ where
     module: &'m BdevModule,
     fn_table: Option<spdk_bdev_fn_table>,
     data: Option<BdevData>,
+    zoned: Option<bool>,
+    num_zones: Option<u64>,
+    zone_size: Option<u64>,
+    max_zone_append_size: Option<u32>,
+    max_open_zones: Option<u32>,
+    max_active_zones: Option<u32>,
+    optimal_open_zones: Option<u32>,
 }
 
 impl<'m, BdevData> BdevBuilder<'m, BdevData>
@@ -70,6 +77,13 @@ where
             module: bdev_mod,
             fn_table: None,
             data: None,
+            zoned: None,
+            num_zones: None,
+            zone_size: None,
+            max_zone_append_size: None,
+            max_open_zones: None,
+            max_active_zones: None,
+            optimal_open_zones: None,
         }
     }
 
@@ -164,6 +178,25 @@ where
         self
     }
 
+    /// Sets Bdev's zoned storage related information.
+    /// This Bdev parameter is manadory.
+    ///
+    /// # Arguments
+    ///
+    /// * `val`: TODO
+    pub fn with_zoned_info(mut self, val: BdevZoneInfo) -> Self {
+        self.zoned = Some(val.zoned);
+        if val.zoned {
+            self.num_zones = Some(val.num_zones);
+            self.zone_size = Some(val.zone_size);
+            self.max_zone_append_size = Some(val.max_zone_append_size);
+            self.max_open_zones = Some(val.max_open_zones);
+            self.max_active_zones = Some(val.max_active_zones);
+            self.optimal_open_zones = Some(val.optimal_open_zones);
+        }
+        self
+    }
+
     /// Consumes a `BdevBuilder` instance and produces a new `Bdev` instance.
     pub fn build(self) -> Bdev<BdevData> {
         // Create a new container for the Bdev data, `spdk_bdev` itself and
@@ -203,12 +236,36 @@ where
                 dif_type: Default::default(),
                 dif_is_head_of_md: Default::default(),
                 dif_check_flags: Default::default(),
-                zoned: Default::default(),
-                zone_size: Default::default(),
-                max_zone_append_size: Default::default(),
-                max_open_zones: Default::default(),
-                max_active_zones: Default::default(),
-                optimal_open_zones: Default::default(),
+                zoned: self.zoned.expect("Bdev zoned must be set"),
+                zone_size: if self.zoned.unwrap() {
+                    self.zone_size.expect("Bdev zone_size must be set")
+                } else {
+                    Default::default()
+                },
+                max_zone_append_size: if self.zoned.unwrap() {
+                    self.max_zone_append_size
+                        .expect("Bdev max_zone_append_size must be set")
+                } else {
+                    Default::default()
+                },
+                max_open_zones: if self.zoned.unwrap() {
+                    self.max_open_zones
+                        .expect("Bdev max_open_zones must be set")
+                } else {
+                    Default::default()
+                },
+                max_active_zones: if self.zoned.unwrap() {
+                    self.max_active_zones
+                        .expect("Bdev max_active_zones must be set")
+                } else {
+                    Default::default()
+                },
+                optimal_open_zones: if self.zoned.unwrap() {
+                    self.optimal_open_zones
+                        .expect("Bdev optimal_open_zones must be set")
+                } else {
+                    Default::default()
+                },
                 media_events: Default::default(),
                 reset_io_drain_timeout:
                     SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE as u16,

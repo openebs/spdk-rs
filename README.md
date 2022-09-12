@@ -88,13 +88,12 @@ make
 * When upgrading from previous versions, clean the SPDK directory
   before building (e.g. git clean).
 * An `AS` is now required, either `yasm` or `nasm`.
-* Zone support for uring must be disabled.
 * Crypto must be disabled.
 
 ```
 AS=yasm ./configure --enable-debug --target-arch=nehalem --without-shared \
     --without-crypto \
-    --with-uring --without-uring-zns \
+    --with-uring \
     --disable-unit-tests --disable-tests \
     --with-fio=$(realpath $(dirname $(which fio))/..)
 
