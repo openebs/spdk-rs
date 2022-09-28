@@ -335,7 +335,7 @@ pub mod nvme_nvm_opcode {
     pub const RESERVATION_REGISTER: u8 = 0x0d;
     pub const RESERVATION_REPORT: u8 = 0x0e;
     pub const RESERVATION_ACQUIRE: u8 = 0x11;
-    // pub const RESERVATION_RELEASE: u8 = 0x15;
+    pub const RESERVATION_RELEASE: u8 = 0x15;
 }
 
 /// TODO
