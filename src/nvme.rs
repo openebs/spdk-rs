@@ -359,7 +359,7 @@ pub mod nvme_reservation_register_action {
 pub mod nvme_reservation_register_cptpl {
     pub const NO_CHANGES: u8 = 0x0;
     pub const CLEAR_POWER_ON: u8 = 0x2;
-    pub const PERSIST_POWER_LOSS: u8 = 0x2;
+    pub const PERSIST_POWER_LOSS: u8 = 0x3;
 }
 
 /// TODO
