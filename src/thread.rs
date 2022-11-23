@@ -97,7 +97,15 @@ impl Thread {
         }
     }
 
-    /// Returns thread indetifier.
+    /// Returns the primary ("init") SPDK thread or None.
+    /// Useful when shutting down before init thread is allocated.
+    pub fn primary_safe() -> Option<Self> {
+        NonNull::new(unsafe { spdk_thread_get_by_id(1) }).map(|inner| Self {
+            inner,
+        })
+    }
+
+    /// Returns thread identifier.
     pub fn id(&self) -> u64 {
         unsafe { spdk_thread_get_id(self.as_ptr()) }
     }
