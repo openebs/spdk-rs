@@ -1,7 +1,14 @@
-///! TODO
-use crate::cpu_cores::Cores;
+use futures::channel::oneshot::{channel, Receiver, Sender};
+use nix::{errno::Errno, libc};
+use std::{
+    ffi::{c_void, CStr, CString},
+    fmt::{Debug, Formatter},
+    future::Future,
+    ptr::NonNull,
+};
+
 use crate::{
-    cpu_cores::CpuMask,
+    cpu_cores::{Cores, CpuMask},
     libspdk::{
         spdk_get_thread,
         spdk_set_thread,
@@ -17,22 +24,26 @@ use crate::{
         spdk_thread_send_msg,
     },
 };
-use futures::channel::oneshot::{channel, Receiver, Sender};
-use nix::{errno::Errno, libc};
-use std::{
-    ffi::{c_void, CStr, CString},
-    fmt::Debug,
-    future::Future,
-    ptr::NonNull,
-};
 
 /// Wrapper for `spdk_thread`.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy)]
 pub struct Thread {
     inner: NonNull<spdk_thread>,
 }
 
 unsafe impl Send for Thread {}
+
+impl Debug for Thread {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "'{}' ({:p}) [core {}]",
+            self.name(),
+            self.as_ptr(),
+            Cores::current(),
+        )
+    }
+}
 
 impl Thread {
     /// With the given thread as context, execute the closure on that thread.
@@ -52,18 +63,26 @@ impl Thread {
         })
     }
 
-    /// Destroys the given thread waiting for it to become ready to destroy.
-    pub fn destroy(self) {
-        debug!(
-            "Destroying SPDK thread {}... {:p}",
-            self.name(),
-            self.as_ptr()
-        );
+    /// Marks thread as exiting.
+    pub fn exit(&self) {
+        debug!("Exiting SPDK thread: {:?}", self);
+
+        let _g = CurrentThreadGuard::new();
+        self.set_current();
+        unsafe {
+            spdk_thread_exit(self.as_ptr());
+        }
+    }
+
+    /// Marks a thread as exiting, and waits until it exits by polling it.
+    pub fn wait_exit(&self) {
+        debug!("Waiting SPDK thread to exit: {:?}", self);
+
+        let _g = CurrentThreadGuard::new();
+
+        self.set_current();
 
         unsafe {
-            spdk_set_thread(self.as_ptr());
-
-            // set that we *want* to exit, but we have not exited yet
             spdk_thread_exit(self.as_ptr());
 
             // now wait until the thread is actually exited the internal
@@ -71,10 +90,22 @@ impl Thread {
             while !spdk_thread_is_exited(self.as_ptr()) {
                 spdk_thread_poll(self.as_ptr(), 0, 0);
             }
+        }
+    }
+
+    /// Destroys a thread, freeing all of its resources.
+    /// Only an exited thread can be safely destroyed, so client code
+    /// must ensure the thread has exited before destroying it.
+    pub fn destroy(self) {
+        debug!("Destroying SPDK thread: {:?}", self);
+
+        assert!(self.is_exited());
+
+        let _g = CurrentThreadGuard::new();
+
+        unsafe {
             spdk_thread_destroy(self.as_ptr());
         }
-
-        debug!("SPDK thread {:p} destroyed", self.as_ptr());
     }
 
     /// Gets a handle to the current thread.
@@ -127,14 +158,20 @@ impl Thread {
 
     /// TODO
     #[inline]
-    pub fn enter(&self) {
+    pub fn set_current(&self) {
         unsafe { spdk_set_thread(self.as_ptr()) };
     }
 
     /// TODO
     #[inline]
-    pub fn exit(&self) {
+    pub fn unset_current(&self) {
         unsafe { spdk_set_thread(std::ptr::null_mut()) };
+    }
+
+    /// TODO
+    #[inline]
+    pub fn is_exited(&self) -> bool {
+        unsafe { spdk_thread_is_exited(self.as_ptr()) }
     }
 
     /// TODO
@@ -145,13 +182,9 @@ impl Thread {
     /// long-running functions. In general if you follow the nodejs event loop
     /// model, you should be good.
     pub fn with<T, F: FnOnce() -> T>(self, f: F) -> T {
-        let th = Self::current();
-        self.enter();
-        let out = f();
-        if let Some(t) = th {
-            t.enter();
-        }
-        out
+        let _g = CurrentThreadGuard::new();
+        self.set_current();
+        f()
     }
 
     /// TODO
@@ -252,5 +285,38 @@ impl Thread {
     /// Returns a pointer to the underlying `spdk_thread` structure.
     pub fn as_ptr(&self) -> *mut spdk_thread {
         self.inner.as_ptr()
+    }
+
+    /// Returns string representation of current thread name and core Id.
+    pub fn current_info() -> String {
+        match Thread::current() {
+            Some(t) => {
+                format!("{:?}", t)
+            }
+            None => {
+                format!("Non-SPDK thread [core {}]", Cores::current())
+            }
+        }
+    }
+}
+
+/// RAII guard for saving and restoring current SPDK thread.
+pub struct CurrentThreadGuard {
+    previous: Option<Thread>,
+}
+
+impl Drop for CurrentThreadGuard {
+    fn drop(&mut self) {
+        if let Some(t) = self.previous.take() {
+            t.set_current();
+        }
+    }
+}
+
+impl CurrentThreadGuard {
+    pub fn new() -> Self {
+        Self {
+            previous: Thread::current(),
+        }
     }
 }
