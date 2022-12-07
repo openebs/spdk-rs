@@ -1,12 +1,16 @@
-///! TODO
 use std::{
     ffi::{c_void, CString},
+    fmt,
+    os::raw::c_char,
     ptr::NonNull,
     time::Duration,
 };
 
+use parking_lot::ReentrantMutex;
+
 use crate::{
-    ffihelper::IntoCString,
+    cpu_cores::Cores,
+    ffihelper::{AsStr, IntoCString},
     libspdk::{
         spdk_poller,
         spdk_poller_fn,
@@ -16,80 +20,317 @@ use crate::{
         spdk_poller_resume,
         spdk_poller_unregister,
     },
+    Thread,
 };
 
+/// Poller state.
+#[derive(Debug, PartialEq)]
+enum PollerState {
+    Starting,
+    Stopped,
+    Waiting,
+    Running,
+}
+
+struct PollerContext(*mut c_void);
+
+unsafe impl Send for PollerContext {}
+
 /// A structure for poller context.
-struct Context<'a, PollerData: 'a> {
-    name: Option<CString>,
-    data: PollerData,
-    poll_fn: Box<dyn Fn(&PollerData) -> i32 + 'a>,
+struct PollerInner<'a, T>
+where
+    T: 'a + Default + Send,
+{
+    inner_ptr: *mut spdk_poller,
+    state: PollerState,
+    name: Option<String>,
+    interval: u64,
+    data: T,
+    poll_fn: Box<dyn FnMut(&T) -> i32 + 'a>,
+    thread: Option<Thread>,
+    lock: ReentrantMutex<()>,
 }
 
-/// Poller structure that allows us to pause, stop, resume periodic tasks
-pub struct Poller<'a, PollerData: 'a> {
-    inner: NonNull<spdk_poller>,
-    ctx: Box<Context<'a, PollerData>>,
+unsafe impl<'a, T> Send for PollerInner<'a, T> where T: 'a + Default + Send {}
+
+impl<'a, T> fmt::Debug for PollerInner<'a, T>
+where
+    T: 'a + Default + Send,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Poller")
+            .field("name", &self.dbg_name())
+            .field("state", &self.state)
+            .field("interval_us", &self.interval)
+            .field(
+                "thread",
+                &self.thread.map_or_else(
+                    || "<none>".to_string(),
+                    |t| t.name().to_string(),
+                ),
+            )
+            .finish()
+    }
 }
 
-impl<'a, PollerData: 'a> Poller<'a, PollerData> {
-    /// Consumers the poller instance and stops it.
+impl<'a, T> PollerInner<'a, T>
+where
+    T: 'a + Default + Send,
+{
+    fn as_ctx(&self) -> PollerContext {
+        PollerContext(self as *const Self as *mut Self as *mut c_void)
+    }
+
+    fn from_ctx<'b>(p: PollerContext) -> &'b mut Self {
+        unsafe { &mut *(p.0 as *mut Self) }
+    }
+
+    fn dbg_name(&self) -> &str {
+        match &self.name {
+            Some(s) => s.as_str(),
+            None => "<unnamed>",
+        }
+    }
+
+    fn is_active(&self) -> bool {
+        matches!(self.state, PollerState::Running | PollerState::Waiting)
+    }
+
+    fn register(&mut self) {
+        assert_eq!(self.state, PollerState::Starting);
+
+        if let Some(t) = self.thread {
+            info!(
+                "Created an SPDK thread '{}' ({:p}) for poller '{}'",
+                t.name(),
+                t.as_ptr(),
+                self.dbg_name()
+            );
+
+            // Register the poller on its own thread.
+            t.send_msg(self.as_ctx(), |ctx| {
+                let mut p = Self::from_ctx(ctx);
+                p.register_impl();
+            });
+        } else {
+            self.register_impl();
+        }
+    }
+
+    fn register_impl(&mut self) {
+        info!(
+            "Registering new poller '{}' on {}",
+            self.dbg_name(),
+            Thread::current_info(),
+        );
+
+        let poll_fn: spdk_poller_fn = Some(inner_poller_cb::<T>);
+
+        self.inner_ptr = match &self.name {
+            Some(name) => {
+                // SPDK stores the name internally.
+                let name_ptr = name.as_str().into_cstring();
+                unsafe {
+                    spdk_poller_register_named(
+                        poll_fn,
+                        self.as_ctx().0,
+                        self.interval,
+                        name_ptr.as_ptr(),
+                    )
+                }
+            }
+            None => unsafe {
+                spdk_poller_register(poll_fn, self.as_ctx().0, self.interval)
+            },
+        };
+        self.state = PollerState::Waiting;
+    }
+
+    fn stop(&mut self) {
+        info!(
+            "Stopping poller '{}' on {}",
+            self.dbg_name(),
+            Thread::current_info()
+        );
+
+        let _g = self.lock.lock();
+
+        assert_ne!(self.state, PollerState::Stopped);
+
+        self.state = PollerState::Stopped;
+    }
+
+    fn unregister(&mut self) {
+        info!(
+            "Unregistering poller '{}' on {}",
+            self.dbg_name(),
+            Thread::current_info()
+        );
+
+        assert_eq!(self.state, PollerState::Stopped);
+
+        if !self.inner_ptr.is_null() {
+            unsafe {
+                spdk_poller_unregister(&mut self.inner_ptr);
+            }
+        }
+
+        if let Some(t) = self.thread.take() {
+            info!(
+                "Exiting poller thread '{}' ({:p}): '{}' ({:p})",
+                self.dbg_name(),
+                self,
+                t.name(),
+                t.as_ptr(),
+            );
+            t.exit();
+        }
+
+        unsafe {
+            drop(Box::from_raw(self));
+        }
+    }
+}
+
+/// Poller callback.
+unsafe extern "C" fn inner_poller_cb<'a, T>(ctx: *mut c_void) -> i32
+where
+    T: 'a + Default + Send,
+{
+    let p = PollerInner::<T>::from_ctx(PollerContext(ctx));
+    let g = p.lock.lock();
+
+    match p.state {
+        PollerState::Waiting => {
+            p.state = PollerState::Running;
+            (p.poll_fn)(&p.data);
+        }
+        PollerState::Stopped => {
+            drop(g);
+            p.unregister();
+            return 0;
+        }
+        _ => {
+            panic!("Unexpected poller state before polling: {:?}", p);
+        }
+    }
+
+    match p.state {
+        PollerState::Running => {
+            p.state = PollerState::Waiting;
+        }
+        PollerState::Stopped => {
+            drop(g);
+            p.unregister();
+            return 0;
+        }
+        _ => {
+            panic!("Unexpected poller state after polling: {:?}", p);
+        }
+    }
+
+    0
+}
+
+/// Poller structure that allows us to pause, stop, resume periodic tasks.
+///
+/// # Generic Arguments
+///
+/// * `T`: user-defined poller data.
+pub struct Poller<'a, T = ()>
+where
+    T: 'a + Default + Send,
+{
+    inner: Option<Box<PollerInner<'a, T>>>,
+}
+
+impl<'a, T> fmt::Debug for Poller<'a, T>
+where
+    T: 'a + Default + Send,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.inner().fmt(f)
+    }
+}
+
+impl<'a, T> Poller<'a, T>
+where
+    T: 'a + Default + Send,
+{
+    /// Consumers the poller instance and stops it. Essentially the same as
+    /// dropping the poller.
     pub fn stop(self) {
-        std::mem::drop(self);
+        drop(self);
     }
 
     /// Pauses the poller.
     pub fn pause(&self) {
+        assert!(self.inner().is_active());
+
         unsafe {
-            spdk_poller_pause(self.inner.as_ptr());
+            spdk_poller_pause(self.inner().inner_ptr);
         }
     }
 
     /// Resumes the poller.
     pub fn resume(&self) {
+        assert!(self.inner().is_active());
+
         unsafe {
-            spdk_poller_resume(self.inner.as_ptr());
+            spdk_poller_resume(self.inner().inner_ptr);
         }
     }
 
-    /// Returns a reference to poller's data object.
-    pub fn data(&self) -> &PollerData {
-        &self.ctx.data
+    /// Returns a reference to the poller's data object.
+    pub fn data(&self) -> &T {
+        &self.inner().data
+    }
+
+    /// Returns poller name.
+    pub fn name(&self) -> Option<&str> {
+        self.inner().name.as_ref().map(|s| s.as_str())
+    }
+
+    fn inner(&self) -> &PollerInner<'a, T> {
+        self.inner.as_ref().unwrap()
     }
 }
 
-impl<'a, PollerData: 'a> Drop for Poller<'a, PollerData> {
+impl<'a, T> Drop for Poller<'a, T>
+where
+    T: 'a + Default + Send,
+{
     fn drop(&mut self) {
-        unsafe {
-            let mut ptr: *mut spdk_poller = self.inner.as_ptr();
-            spdk_poller_unregister(&mut ptr);
-        }
+        let p = self.inner.take().unwrap();
+        Box::leak(p).stop();
     }
-}
-
-/// TODO
-unsafe extern "C" fn inner_poller_cb<'a, PollerData: 'a>(
-    ctx: *mut c_void,
-) -> i32 {
-    let ctx = &*(ctx as *mut Context<PollerData>);
-    (ctx.poll_fn)(&ctx.data);
-    0
 }
 
 /// Builder type to create a new poller.
-pub struct PollerBuilder<'a, PollerData> {
-    name: Option<CString>,
-    data: Option<PollerData>,
-    poll_fn: Option<Box<dyn Fn(&PollerData) -> i32 + 'a>>,
+pub struct PollerBuilder<'a, T>
+where
+    T: 'a + Default + Send,
+{
+    name: Option<String>,
+    data: Option<T>,
+    poll_fn: Option<Box<dyn FnMut(&T) -> i32 + 'a>>,
     interval: std::time::Duration,
+    core: Option<u32>,
 }
 
-impl<'a, PollerData> Default for PollerBuilder<'a, PollerData> {
+impl<'a, T> Default for PollerBuilder<'a, T>
+where
+    T: 'a + Default + Send,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a, PollerData> PollerBuilder<'a, PollerData> {
+impl<'a, T> PollerBuilder<'a, T>
+where
+    T: 'a + Default + Send,
+{
     /// Creates a new nameless poller that runs every time the thread the poller
     /// is created on is polled.
     pub fn new() -> Self {
@@ -98,63 +339,77 @@ impl<'a, PollerData> PollerBuilder<'a, PollerData> {
             data: None,
             poll_fn: None,
             interval: Duration::from_micros(0),
+            core: None,
         }
     }
 
     /// Sets optional poller name.
     pub fn with_name(mut self, name: &str) -> Self {
-        self.name = Some(String::from(name).into_cstring());
+        self.name = Some(String::from(name));
         self
     }
 
     /// Sets the poller data instance.
     /// This Poller parameter is manadory.
-    pub fn with_data(mut self, data: PollerData) -> Self {
+    pub fn with_data(mut self, data: T) -> Self {
         self.data = Some(data);
         self
     }
 
     /// Sets the poll function for this poller.
     /// This Poller parameter is manadory.
-    pub fn with_poll_fn(
-        mut self,
-        poll_fn: impl Fn(&PollerData) -> i32 + 'a,
-    ) -> Self {
+    pub fn with_poll_fn(mut self, poll_fn: impl FnMut(&T) -> i32 + 'a) -> Self {
         self.poll_fn = Some(Box::new(poll_fn));
         self
     }
 
     /// Sets the polling interval for this poller.
-    pub fn with_interval(mut self, usec: u64) -> Self {
-        self.interval = Duration::from_micros(usec);
+    pub fn with_interval(mut self, interval: Duration) -> Self {
+        self.interval = interval;
         self
+    }
+
+    /// Sets the CPU core to run poller on.
+    pub fn with_core(mut self, core: u32) -> Self {
+        self.core = Some(core);
+        self
+    }
+
+    /// Makes a thread name for this poller.
+    fn thread_name(&self) -> String {
+        match &self.name {
+            Some(n) => format!("poller_thread_{}", n),
+            None => "poller_thread_unnamed".to_string(),
+        }
     }
 
     /// Consumes a `PollerBuilder` instance, and registers a new poller within
     /// SPDK.
-    pub fn build(self) -> Poller<'a, PollerData> {
-        // Create a new `PollerData` instance.
-        let mut data = Box::new(Context {
-            name: self.name,
-            data: self.data.expect("Poller data must be set"),
+    pub fn build(self) -> Poller<'a, T> {
+        // If this poller is configured to run on a different core,
+        // create a thread for it.
+        let thread = self
+            .core
+            .map(|core| Thread::new(self.thread_name(), core).unwrap());
+
+        // Create a new poller.
+        let mut ctx = Box::new(PollerInner {
+            inner_ptr: std::ptr::null_mut(),
+            state: PollerState::Starting,
+            name: self.name.clone(),
+            data: self.data.unwrap_or_default(),
             poll_fn: self.poll_fn.expect("Poller function must be set"),
+            interval: self.interval.as_micros() as u64,
+            thread,
+            lock: ReentrantMutex::new(()),
         });
 
-        let pf: spdk_poller_fn = Some(inner_poller_cb::<PollerData>);
-        let pd = data.as_mut() as *mut Context<_> as *mut c_void;
-        let t = self.interval.as_micros() as u64;
+        ctx.register();
 
-        // Register the poller.
-        let inner = unsafe {
-            match &data.name {
-                None => spdk_poller_register(pf, pd, t),
-                Some(s) => spdk_poller_register_named(pf, pd, t, s.as_ptr()),
-            }
-        };
+        debug!("New poller context '{}' ({:p})", ctx.dbg_name(), ctx);
 
         Poller {
-            inner: NonNull::new(inner).unwrap(),
-            ctx: data,
+            inner: Some(ctx),
         }
     }
 }

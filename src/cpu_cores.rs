@@ -1,4 +1,8 @@
-///! TODO
+use std::{
+    fmt::{Debug, Formatter},
+    ops::{Deref, DerefMut},
+};
+
 use crate::libspdk::{
     spdk_cpuset,
     spdk_cpuset_set_cpu,
@@ -67,6 +71,11 @@ impl Cores {
                 Core::Last => spdk_env_get_last_core(),
             }
         }
+    }
+
+    /// Returns list of CPU cores.
+    pub fn list_cores() -> Vec<u32> {
+        Self::count().into_iter().collect()
     }
 }
 
@@ -138,5 +147,77 @@ impl CpuMask {
 impl Default for CpuMask {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Base CPU core selector.
+pub struct CoreSelectorBase {
+    cores: Vec<u32>,
+    next: usize,
+}
+
+impl Debug for CoreSelectorBase {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.cores)
+    }
+}
+
+impl CoreSelectorBase {
+    /// Creates new core selector base.
+    pub fn new() -> Self {
+        let cores = Cores::list_cores();
+        assert!(cores.len() > 0, "No CPU cores found");
+        Self {
+            cores,
+            next: 0,
+        }
+    }
+}
+
+/// Round-robin core select.
+pub struct RoundRobinCoreSelector(CoreSelectorBase);
+
+impl Deref for RoundRobinCoreSelector {
+    type Target = CoreSelectorBase;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for RoundRobinCoreSelector {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl RoundRobinCoreSelector {
+    /// Creates new round-robin core selector.
+    pub fn new() -> Self {
+        Self(CoreSelectorBase::new())
+    }
+
+    /// Selects the next core, filtering out the unsuitable ones.
+    pub fn filter_next(&mut self, mut f: impl FnMut(u32) -> bool) -> u32 {
+        let mut n = self.next;
+        let start = n;
+
+        loop {
+            self.next += 1;
+            if self.next == self.cores.len() {
+                self.next = 0;
+            }
+
+            if f(self.cores[n]) {
+                break;
+            }
+
+            n = self.next;
+            if start == n {
+                break;
+            }
+        }
+
+        self.cores[n]
     }
 }
