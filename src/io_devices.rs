@@ -39,8 +39,9 @@ pub trait IoDevice: Sized {
     fn register_io_device(&self, name: Option<&str>) {
         // `spdk_io_device_register` copies the name argument internally,
         // so we don't have to keep track on it.
-        let name = if let Some(s) = name {
-            String::from(s).into_cstring().as_ptr()
+        let cname = String::from(name.unwrap_or_else(|| "")).into_cstring();
+        let name_ptr = if let Some(s) = name {
+            cname.as_ptr()
         } else {
             std::ptr::null_mut::<c_char>()
         };
@@ -51,7 +52,7 @@ pub trait IoDevice: Sized {
                 Some(inner_io_channel_create::<Self>),
                 Some(inner_io_channel_destroy::<Self>),
                 std::mem::size_of::<Self::ChannelData>() as u32,
-                name,
+                name_ptr,
             );
         }
     }
