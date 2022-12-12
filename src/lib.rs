@@ -62,6 +62,7 @@ pub use crate::{
         WithModuleInit,
     },
     bdev_ops::BdevOps,
+    cpu_cores::{Core, CoreIterator, Cores, RoundRobinCoreSelector},
     dma::{DmaBuf, DmaError},
     error::{spdk_error, SpdkError, SpdkResult},
     io_channel::{IoChannel, IoChannelGuard},
@@ -82,7 +83,7 @@ pub use crate::{
         PathStatusCode,
     },
     poller::{Poller, PollerBuilder},
-    thread::Thread,
+    thread::{CurrentThreadGuard, Thread},
     untyped_bdev::UntypedBdev,
     uuid::Uuid,
 };
