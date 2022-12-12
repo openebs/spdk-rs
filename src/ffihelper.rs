@@ -1,4 +1,3 @@
-///! TODO
 use std::{
     error::Error,
     ffi::{CStr, CString},
@@ -6,7 +5,7 @@ use std::{
         raw,
         raw::{c_char, c_void},
     },
-    ptr::NonNull,
+    ptr::{copy_nonoverlapping, NonNull},
 };
 
 use futures::channel::{
@@ -74,6 +73,41 @@ impl IntoCString for String {
 impl IntoCString for &str {
     fn into_cstring(self) -> CString {
         CString::new(self).unwrap()
+    }
+}
+
+/// Copies a Rust string into a character buffer, always terminating with
+/// the null byte. If the string to be copied (including the terminating null
+/// byte) is longer than the destination, it is truncated to fit the
+/// destination.
+pub fn copy_str_with_null(src: &str, dst: &mut [c_char]) {
+    let csrc = src.into_cstring();
+    copy_cstr_with_null(&csrc, dst);
+}
+
+/// Copies a CString into a character buffer, always terminating with
+/// the null byte. If the string to be copied (including the terminating null
+/// byte) is longer than the destination, it is truncated to fit the
+/// destination.
+pub fn copy_cstr_with_null(src: &CStr, dst: &mut [c_char]) {
+    copy_cstr_to_buf_with_null(&src, dst.as_mut_ptr(), dst.len());
+}
+
+/// Copies a CString into a character buffer, always terminating with
+/// the null byte. If the string to be copied (including the terminating null
+/// byte) is longer than the destination, it is truncated to fit the
+/// destination.
+pub fn copy_cstr_to_buf_with_null(
+    src: &CStr,
+    dst: *mut c_char,
+    dst_size: usize,
+) {
+    let bytes = src.to_bytes();
+    let count = std::cmp::min(bytes.len(), dst_size - 1);
+    unsafe {
+        copy_nonoverlapping(bytes.as_ptr() as *const c_char, dst, count);
+        let dst = dst.add(count);
+        *dst = 0 as c_char;
     }
 }
 
