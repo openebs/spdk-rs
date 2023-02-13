@@ -27,13 +27,13 @@ impl Debug for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::PkgConfig(e) => {
-                write!(f, "pkg_config::error {}", e)
+                write!(f, "pkg_config::error {e}")
             }
             Error::Compiler(e) => {
-                write!(f, "cc::builder::error {}", e)
+                write!(f, "cc::builder::error {e}")
             }
             Error::Generic(e) => {
-                write!(f, "exec error {}", e)
+                write!(f, "exec error {e}")
             }
         }
     }
@@ -43,13 +43,13 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::PkgConfig(e) => {
-                write!(f, "Failed to run 'pkg_config': {}", e)
+                write!(f, "Failed to run 'pkg_config': {e}")
             }
             Error::Compiler(e) => {
-                write!(f, "Failed to run compiler tool: {}", e)
+                write!(f, "Failed to run compiler tool: {e}")
             }
             Error::Generic(e) => {
-                write!(f, "{}", e)
+                write!(f, "{e}")
             }
         }
     }

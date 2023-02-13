@@ -201,7 +201,7 @@ where
     let mut src_files = Vec::new();
 
     for s in &files {
-        match fs::canonicalize(&s) {
+        match fs::canonicalize(s) {
             Ok(p) => {
                 println!("cargo:rerun-if-changed={}", p.to_str().unwrap());
                 if p.extension().unwrap() == "c" {
@@ -210,8 +210,7 @@ where
             }
             Err(e) => {
                 return Err(Error::Generic(format!(
-                    "Bad SPDK helper source {}: {}",
-                    s, e
+                    "Bad SPDK helper source {s}: {e}"
                 )))
             }
         }
@@ -241,7 +240,7 @@ fn main() {
             c
         }
         Err(e) => {
-            eprintln!("\nFailed to configure SPDK: {}\n", e);
+            eprintln!("\nFailed to configure SPDK: {e}\n");
             std::process::exit(1);
         }
     };
@@ -255,7 +254,7 @@ fn main() {
             println!("Successfully compiled SPDK helpers");
         }
         Err(e) => {
-            eprintln!("\nFailed to complie SPDK helpers: {}\n", e);
+            eprintln!("\nFailed to complie SPDK helpers: {e}\n");
             std::process::exit(1);
         }
     }

@@ -266,11 +266,11 @@ impl LibraryConfig {
         if status.success() {
             let paths: Vec<PathBuf> = lines.iter().map(PathBuf::from).collect();
             for p in paths.iter() {
-                self.add_pkg_cfg_path(&p)?;
+                self.add_pkg_cfg_path(p)?;
             }
             Ok(paths)
         } else {
-            Err(Error::Generic(format!("Command 'find' failed: {}", status)))
+            Err(Error::Generic(format!("Command 'find' failed: {status}")))
         }
     }
 
@@ -326,7 +326,7 @@ impl LibraryConfig {
         let lib_name = OsString::from(&lib_name);
         let library = self.cfg.probe(lib_name.to_str().unwrap())?;
         for name in &library.libs {
-            let lib = Library::new(&name, &lib_name, self);
+            let lib = Library::new(name, &lib_name, self);
 
             if !self.excluded.contains(&lib.lib_name)
                 && !self.libs.contains(&lib)
@@ -378,7 +378,7 @@ impl LibraryConfig {
     pub fn dump(&self) {
         println!("**** Found libraries:");
         for lib in self.libs.iter() {
-            println!("    {}", lib);
+            println!("    {lib}");
         }
 
         println!("**** Found library paths:");
