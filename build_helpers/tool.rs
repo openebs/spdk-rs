@@ -73,12 +73,12 @@ impl Tool {
 
     /// Adds a compiler flag.
     pub fn add_flag(&mut self, s: &str) {
-        self.push_str(&format!("-{}", s));
+        self.push_str(&format!("-{s}"));
     }
 
     /// Adds a linker flag.
     pub fn add_linker_flag(&mut self, s: &str) {
-        self.push_str(&format!("-Wl,--{}", s));
+        self.push_str(&format!("-Wl,--{s}"));
     }
 
     /// Runs the compiler tool.
@@ -88,17 +88,14 @@ impl Tool {
 
         let desc = self.description();
 
-        println!("Executing tool '{}': {:?}", desc, cmd);
+        println!("Executing tool '{desc}': {cmd:?}");
 
         let (status, _) = run_command(&mut cmd, &desc, Some("cc"))?;
 
         if status.success() {
             Ok(())
         } else {
-            Err(Error::Generic(format!(
-                "Command '{}' failed: {}",
-                desc, status
-            )))
+            Err(Error::Generic(format!("Command '{desc}' failed: {status}")))
         }
     }
 
@@ -120,8 +117,7 @@ pub fn run_command(
         Ok(s) => s,
         Err(e) => {
             return Err(Error::Generic(format!(
-                "Failed to wait on spawned child process '{}': {}",
-                desc, e
+                "Failed to wait on spawned child process '{desc}': {e}"
             )));
         }
     };
@@ -130,8 +126,7 @@ pub fn run_command(
         Ok(lines) => lines,
         Err(e) => {
             return Err(Error::Generic(format!(
-                "Failed to read output of child process  '{}': {:?}",
-                desc, e
+                "Failed to read output of child process  '{desc}': {e:?}"
             )));
         }
     };
@@ -156,7 +151,7 @@ fn spawn_child(
                 let mut lines = Vec::new();
                 for line in stddout.split(b'\n').filter_map(|l| l.ok()) {
                     if let Some(ref s) = short_desc {
-                        print!("[{}] ", s);
+                        print!("[{s}] ");
                         std::io::stdout().write_all(&line).unwrap();
                         println!();
                     }
@@ -168,12 +163,11 @@ fn spawn_child(
 
             Ok((child, out_reader))
         }
-        Err(e) if e.kind() == ::std::io::ErrorKind::NotFound => Err(
-            Error::Generic(format!("Command '{}' not found: {}", desc, e)),
-        ),
+        Err(e) if e.kind() == ::std::io::ErrorKind::NotFound => {
+            Err(Error::Generic(format!("Command '{desc}' not found: {e}")))
+        }
         Err(e) => Err(Error::Generic(format!(
-            "Failed to spawn a child process '{}': {}",
-            desc, e
+            "Failed to spawn a child process '{desc}': {e}"
         ))),
     }
 }
