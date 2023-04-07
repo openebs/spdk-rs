@@ -320,7 +320,7 @@ pub mod nvme_admin_opc {
     // pub const SET_FEATURES: u8 = 0x09;
     // pub const GET_FEATURES: u8 = 0x0a;
     // Vendor-specific
-    pub const CREATE_SNAPSHOT: u8 = 0xc0;
+    pub const CREATE_SNAPSHOT: u8 = 0xc1;
 }
 
 /// NVM command set opcodes, from nvme_spec.h
