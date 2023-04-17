@@ -30,6 +30,7 @@ use crate::{
         spdk_bdev_module_release_bdev,
         spdk_bdev_register,
         spdk_bdev_unregister,
+        spdk_bdev_has_write_cache,
     },
     BdevIo,
     BdevModule,
@@ -239,6 +240,11 @@ where
     /// Returns true if this Bdev is claimed by the given Bdev module.
     pub fn is_claimed_by_module(&self, module: &BdevModule) -> bool {
         self.as_inner_ref().internal.claim_module == module.as_ptr()
+    }
+
+    /// Check whether device has write cache.
+    pub fn is_write_cache_enabled(&self) -> bool {
+        unsafe { spdk_bdev_has_write_cache(self.as_inner_ptr()) }
     }
 
     /// Releases a write claim on a block device.
