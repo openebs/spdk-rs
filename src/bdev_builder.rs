@@ -12,6 +12,7 @@ use crate::{
         spdk_get_io_channel,
         spdk_io_channel,
         spdk_json_write_ctx,
+        SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE,
     },
     Bdev,
     BdevIo,
@@ -90,6 +91,8 @@ where
             get_spin_time: None,
             get_module_ctx: Some(inner_bdev_get_module_ctx::<BdevData>),
             get_memory_domains: None,
+            dump_device_stat_json: None,
+            reset_device_stat: None,
         });
         self.data = Some(ctx);
         self
@@ -179,6 +182,7 @@ where
                 blocklen: self.blocklen.expect("Bdeb block length must be set"),
                 phys_blocklen: Default::default(),
                 blockcnt: self.blockcnt.expect("Bdeb block count must be set"),
+                split_on_write_unit: Default::default(),
                 write_unit_size: Default::default(),
                 acwu: Default::default(),
                 required_alignment: self
@@ -191,6 +195,7 @@ where
                 max_unmap: Default::default(),
                 max_unmap_segments: Default::default(),
                 max_write_zeroes: Default::default(),
+                max_copy: Default::default(),
                 uuid: self.uuid.unwrap_or_else(Uuid::generate).into_raw(),
                 md_len: Default::default(),
                 md_interleave: Default::default(),
@@ -204,6 +209,8 @@ where
                 max_active_zones: Default::default(),
                 optimal_open_zones: Default::default(),
                 media_events: Default::default(),
+                reset_io_drain_timeout:
+                    SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE as u16,
                 module: self.module.as_ptr(),
                 fn_table: null_mut::<spdk_bdev_fn_table>(),
                 internal: Default::default(),

@@ -61,11 +61,31 @@ git checkout vYY.mm.x-mayastor
 git submodule update --init --recursive
 ```
 
-Configure and build it:
+### Configure and build it:
+
+#### Version < 22.09
 ```
 ./configure --enable-debug --target-arch=nehalem --without-shared \
     --without-isal --with-crypto --with-uring --disable-unit-tests \
     --disable-tests --with-fio=$(which fio | sed s';bin/fio;include;')
+make
+```
+
+#### Version >= 22.09
+* ISAL is now mandatory
+* When upgrading from previous versions, clean the SPDK directory 
+  before building (e.g. git clean). 
+* An `AS` is now required, either `yasm` or `nasm`.
+* Zone support for uring must be disabled.
+* Crypto must be disabled.
+
+```
+AS=yasm ./configure --enable-debug --target-arch=nehalem --without-shared \
+    --without-crypto \
+    --with-uring --without-uring-zns \
+    --disable-unit-tests --disable-tests \
+    --with-fio=$(realpath $(dirname $(which fio))/..)
+        
 make
 ```
 

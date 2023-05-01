@@ -1,9 +1,15 @@
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
+
 #include "nvme_helper.h"
 
 #include <spdk/bdev_module.h>
 #include <bdev/bdev_internal.h>
 #include <spdk/nvme_spec.h>
 #include <spdk/thread.h>
+
+#pragma GCC diagnostic pop
 
 uint32_t *
 nvme_cmd_cdw10_get(struct spdk_nvme_cmd *cmd) {
