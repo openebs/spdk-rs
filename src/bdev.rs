@@ -28,6 +28,7 @@ use crate::{
         spdk_bdev_get_by_name,
         spdk_bdev_has_write_cache,
         spdk_bdev_io_type_supported,
+        spdk_bdev_module,
         spdk_bdev_module_release_bdev,
         spdk_bdev_register,
         spdk_bdev_unregister,
@@ -38,6 +39,7 @@ use crate::{
     IoChannel,
     IoDevice,
     IoType,
+    Thread,
     Uuid,
 };
 
@@ -97,6 +99,8 @@ where
     /// TODO
     /// ... lookup a bdev by its name
     pub fn lookup_by_name(name: &str) -> Option<Self> {
+        assert!(Thread::is_spdk_thread());
+
         let name = String::from(name).into_cstring();
         let bdev = unsafe { spdk_bdev_get_by_name(name.as_ptr()) };
         if bdev.is_null() {
@@ -108,7 +112,7 @@ where
 
     /// Returns by a Bdev module who has claimed this Bdev.
     pub fn claimed_by_module(&self) -> Option<BdevModule> {
-        let ptr = self.as_inner_ref().internal.claim_module;
+        let ptr = self.claim_module_ptr();
         if ptr.is_null() {
             None
         } else {
@@ -232,14 +236,20 @@ where
         self.as_inner_ref().required_alignment
     }
 
+    /// Returns claim module raw pointer.
+    pub fn claim_module_ptr(&self) -> *mut spdk_bdev_module {
+        unsafe { self.as_inner_ref().internal.claim.v1.module }
+    }
+
     /// Returns true if this Bdev is claimed by some other component.
     pub fn is_claimed(&self) -> bool {
-        !self.as_inner_ref().internal.claim_module.is_null()
+        !self.claim_module_ptr().is_null()
     }
 
     /// Returns true if this Bdev is claimed by the given Bdev module.
     pub fn is_claimed_by_module(&self, module: &BdevModule) -> bool {
-        self.as_inner_ref().internal.claim_module == module.as_ptr()
+        self.claimed_by_module()
+            .map_or(false, |m| m.name() == module.name())
     }
 
     /// Check whether device has write cache.

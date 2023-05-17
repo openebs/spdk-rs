@@ -1,151 +1,80 @@
 ///! TODO
+use super::libspdk;
 
 /// TODO
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Eq)]
+#[repr(u32)]
 pub enum IoType {
-    /// TODO
-    Invalid,
-    /// TODO
-    Read,
-    /// TODO
-    Write,
-    /// TODO
-    Unmap,
-    /// TODO
-    Flush,
-    /// TODO
-    Reset,
-    /// TODO
-    NvmeAdmin,
-    /// TODO
-    NvmeIo,
-    /// TODO
-    NvmeIoMd,
-    /// TODO
-    WriteZeros,
-    /// TODO
-    ZeroCopy,
-    /// TODO
-    ZoneInfo,
-    /// TODO
-    ZoneManagement,
-    /// TODO
-    ZoneAppend,
-    /// TODO
-    Compare,
-    /// TODO
-    CompareAndWrite,
-    /// TODO
-    Abort,
-    /// TODO
-    IoNumTypes,
+    Invalid = libspdk::SPDK_BDEV_IO_TYPE_INVALID,
+    Read = libspdk::SPDK_BDEV_IO_TYPE_READ,
+    Write = libspdk::SPDK_BDEV_IO_TYPE_WRITE,
+    Unmap = libspdk::SPDK_BDEV_IO_TYPE_UNMAP,
+    Flush = libspdk::SPDK_BDEV_IO_TYPE_FLUSH,
+    Reset = libspdk::SPDK_BDEV_IO_TYPE_RESET,
+    NvmeAdmin = libspdk::SPDK_BDEV_IO_TYPE_NVME_ADMIN,
+    NvmeIo = libspdk::SPDK_BDEV_IO_TYPE_NVME_IO,
+    NvmeIoMd = libspdk::SPDK_BDEV_IO_TYPE_NVME_IO_MD,
+    WriteZeros = libspdk::SPDK_BDEV_IO_TYPE_WRITE_ZEROES,
+    ZeroCopy = libspdk::SPDK_BDEV_IO_TYPE_ZCOPY,
+    ZoneInfo = libspdk::SPDK_BDEV_IO_TYPE_GET_ZONE_INFO,
+    ZoneManagement = libspdk::SPDK_BDEV_IO_TYPE_ZONE_MANAGEMENT,
+    ZoneAppend = libspdk::SPDK_BDEV_IO_TYPE_ZONE_APPEND,
+    Compare = libspdk::SPDK_BDEV_IO_TYPE_COMPARE,
+    CompareAndWrite = libspdk::SPDK_BDEV_IO_TYPE_COMPARE_AND_WRITE,
+    Abort = libspdk::SPDK_BDEV_IO_TYPE_ABORT,
+    SeekHole = libspdk::SPDK_BDEV_IO_TYPE_SEEK_HOLE,
+    SeekData = libspdk::SPDK_BDEV_IO_TYPE_SEEK_DATA,
+    Copy = libspdk::SPDK_BDEV_IO_TYPE_COPY,
+    IoNumTypes = libspdk::SPDK_BDEV_NUM_IO_TYPES,
 }
 
 /// TODO
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Eq)]
 #[non_exhaustive]
+#[repr(i32)]
 pub enum IoStatus {
-    /// TODO
-    Aborted,
-    /// TODO
-    FirstFusedFailed,
-    /// TODO
-    MisCompared,
-    /// TODO
-    NoMemory,
-    /// TODO
-    ScsiError,
-    /// TODO
-    NvmeError,
-    /// TODO
-    Failed,
-    /// TODO
-    Pending,
-    /// TODO
-    Success,
+    AioError = libspdk::SPDK_BDEV_IO_STATUS_AIO_ERROR,
+    Aborted = libspdk::SPDK_BDEV_IO_STATUS_ABORTED,
+    FirstFusedFailed = libspdk::SPDK_BDEV_IO_STATUS_FIRST_FUSED_FAILED,
+    MisCompared = libspdk::SPDK_BDEV_IO_STATUS_MISCOMPARE,
+    NoMemory = libspdk::SPDK_BDEV_IO_STATUS_NOMEM,
+    ScsiError = libspdk::SPDK_BDEV_IO_STATUS_SCSI_ERROR,
+    NvmeError = libspdk::SPDK_BDEV_IO_STATUS_NVME_ERROR,
+    Failed = libspdk::SPDK_BDEV_IO_STATUS_FAILED,
+    Pending = libspdk::SPDK_BDEV_IO_STATUS_PENDING,
+    Success = libspdk::SPDK_BDEV_IO_STATUS_SUCCESS,
 }
 
 impl From<IoType> for u32 {
     fn from(t: IoType) -> Self {
-        match t {
-            IoType::Invalid => 0,
-            IoType::Read => 1,
-            IoType::Write => 2,
-            IoType::Unmap => 3,
-            IoType::Flush => 4,
-            IoType::Reset => 5,
-            IoType::NvmeAdmin => 6,
-            IoType::NvmeIo => 7,
-            IoType::NvmeIoMd => 8,
-            IoType::WriteZeros => 9,
-            IoType::ZeroCopy => 10,
-            IoType::ZoneInfo => 11,
-            IoType::ZoneManagement => 12,
-            IoType::ZoneAppend => 13,
-            IoType::Compare => 14,
-            IoType::CompareAndWrite => 15,
-            IoType::Abort => 16,
-            IoType::IoNumTypes => 17,
-        }
+        t as u32
     }
 }
 
 impl From<u32> for IoType {
     fn from(u: u32) -> Self {
-        match u {
-            0 => Self::Invalid,
-            1 => Self::Read,
-            2 => Self::Write,
-            3 => Self::Unmap,
-            4 => Self::Flush,
-            5 => Self::Reset,
-            6 => Self::NvmeAdmin,
-            7 => Self::NvmeIo,
-            8 => Self::NvmeIoMd,
-            9 => Self::WriteZeros,
-            10 => Self::ZeroCopy,
-            11 => Self::ZoneInfo,
-            12 => Self::ZoneManagement,
-            13 => Self::ZoneAppend,
-            14 => Self::Compare,
-            15 => Self::CompareAndWrite,
-            16 => Self::Abort,
-            17 => Self::IoNumTypes,
-            _ => panic!("invalid IO type"),
-        }
+        assert!(
+            u <= libspdk::SPDK_BDEV_NUM_IO_TYPES,
+            "Invalid or unknown I/O type"
+        );
+        unsafe { *std::mem::transmute::<*const u32, *const IoType>(&u) }
     }
 }
 
 impl From<i32> for IoStatus {
-    fn from(status: i32) -> Self {
-        match status {
-            -7 => Self::Aborted,
-            -6 => Self::FirstFusedFailed,
-            -5 => Self::MisCompared,
-            -4 => Self::NoMemory,
-            -3 => Self::ScsiError,
-            -2 => Self::NvmeError,
-            -1 => Self::Failed,
-            0 => Self::Pending,
-            1 => Self::Success,
-            _ => panic!("invalid status code"),
-        }
+    fn from(s: i32) -> Self {
+        assert!(
+            s >= libspdk::SPDK_MIN_BDEV_IO_STATUS
+                && s <= libspdk::SPDK_BDEV_IO_STATUS_SUCCESS,
+            "Invalid or unknown status code"
+        );
+        unsafe { *std::mem::transmute::<*const i32, *const IoStatus>(&s) }
     }
 }
 
 impl From<IoStatus> for i32 {
     fn from(i: IoStatus) -> Self {
-        match i {
-            IoStatus::Aborted => -7,
-            IoStatus::FirstFusedFailed => -6,
-            IoStatus::MisCompared => -5,
-            IoStatus::NoMemory => -4,
-            IoStatus::ScsiError => -3,
-            IoStatus::NvmeError => -2,
-            IoStatus::Failed => -1,
-            IoStatus::Pending => 0,
-            IoStatus::Success => 1,
-        }
+        i as i32
     }
 }
 
