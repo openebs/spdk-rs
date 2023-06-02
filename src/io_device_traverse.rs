@@ -1,4 +1,5 @@
-///! TODO
+use async_trait::async_trait;
+use futures::channel::oneshot;
 use std::{marker::PhantomData, os::raw::c_void};
 
 use crate::{
@@ -98,9 +99,8 @@ impl<'a, 'b, 'c, ChannelData, Ctx> TraverseCtx<'a, 'b, 'c, ChannelData, Ctx> {
 }
 
 /// TODO
+#[async_trait(?Send)]
 pub trait IoDeviceChannelTraverse: IoDevice {
-    /// TODO
-    ///
     /// Iterates over all I/O channels associated with this I/O device.
     ///
     /// # Arguments
@@ -110,13 +110,13 @@ pub trait IoDeviceChannelTraverse: IoDevice {
     /// * `context`: TODO
     fn traverse_io_channels<'a, 'b, Ctx>(
         &self,
+        context: Ctx,
         channel_cb: impl FnMut(
                 &mut <Self as IoDevice>::ChannelData,
                 &mut Ctx,
             ) -> ChannelTraverseStatus
             + 'a,
         done_cb: impl FnMut(ChannelTraverseStatus, Ctx) + 'b,
-        context: Ctx,
     ) {
         let ctx = Box::new(TraverseCtx::new(channel_cb, done_cb, context));
 
@@ -129,6 +129,32 @@ pub trait IoDeviceChannelTraverse: IoDevice {
                 Some(inner_traverse_channel_done::<Self::ChannelData, Ctx>),
             );
         }
+    }
+
+    /// Asynchrnously iterates over all I/O channels associated with this I/O
+    /// device.
+    async fn traverse_io_channels_async<T, F>(&self, data: T, func: F)
+    where
+        T: Send,
+        F: FnMut(&mut <Self as IoDevice>::ChannelData, &T) -> (),
+    {
+        let (sender, recv) = oneshot::channel::<()>();
+
+        let ctx = TraverseAsyncCtx::<Self, T, F> {
+            sender,
+            data,
+            func,
+            _d: Default::default(),
+        };
+
+        self.traverse_io_channels(
+            ctx,
+            TraverseAsyncCtx::channel_cb,
+            TraverseAsyncCtx::channel_done,
+        );
+
+        recv.await
+            .expect("for_each_io_channel(): sender already dropped: {err}");
     }
 }
 
@@ -161,4 +187,37 @@ extern "C" fn inner_traverse_channel_done<ChannelData, Ctx>(
     let ctx = TraverseCtx::<ChannelData, Ctx>::from_iter(i);
     let mut ctx = unsafe { Box::from_raw(ctx) };
     (ctx.done_cb)(status.into(), ctx.ctx);
+}
+
+/// TODO
+struct TraverseAsyncCtx<D, T, F>
+where
+    D: IoDevice,
+    T: Send,
+    F: FnMut(&mut D::ChannelData, &T) -> (),
+{
+    sender: oneshot::Sender<()>,
+    data: T,
+    func: F,
+    _d: PhantomData<D>,
+}
+
+/// TODO
+impl<D, T, F> TraverseAsyncCtx<D, T, F>
+where
+    D: IoDevice,
+    T: Send,
+    F: FnMut(&mut D::ChannelData, &T) -> (),
+{
+    fn channel_cb(
+        channel: &mut D::ChannelData,
+        ctx: &mut Self,
+    ) -> ChannelTraverseStatus {
+        (ctx.func)(channel, &ctx.data);
+        ChannelTraverseStatus::Ok
+    }
+
+    fn channel_done(_status: ChannelTraverseStatus, ctx: Self) {
+        ctx.sender.send(()).expect("Receiver disappeared");
+    }
 }

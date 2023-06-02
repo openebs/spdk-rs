@@ -59,7 +59,7 @@ where
     #[inline]
     pub fn bdev_checked(&self, prod_name: &str) -> Bdev<BdevData> {
         let b = Bdev::from_inner_ptr(self.as_ref().bdev);
-        assert_eq!(b.product_name(), prod_name);
+        debug_assert_eq!(b.product_name(), prod_name);
         b
     }
 
