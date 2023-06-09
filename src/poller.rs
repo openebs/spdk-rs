@@ -351,6 +351,9 @@ where
 
     /// Sets the poller data instance.
     /// This Poller parameter is manadory.
+    ///
+    /// To use a non-`Send` or non-`Default` type with `Poller<'a, T>`,
+    /// `UnsafeData<T>` or `UnsafeRef<T>` wrappers can be utilized.
     pub fn with_data(mut self, data: T) -> Self {
         self.data = Some(data);
         self

@@ -42,6 +42,7 @@ mod json_write_context;
 mod nvme;
 mod poller;
 mod thread;
+mod unsafe_types;
 mod untyped_bdev;
 mod uuid;
 
@@ -84,6 +85,7 @@ pub use crate::{
     },
     poller::{Poller, PollerBuilder},
     thread::{CurrentThreadGuard, Thread},
+    unsafe_types::{UnsafeData, UnsafeRef},
     untyped_bdev::UntypedBdev,
     uuid::Uuid,
 };
