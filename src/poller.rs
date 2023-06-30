@@ -100,7 +100,7 @@ where
         assert_eq!(self.state, PollerState::Starting);
 
         if let Some(t) = self.thread {
-            info!(
+            trace!(
                 "Created an SPDK thread '{}' ({:p}) for poller '{}'",
                 t.name(),
                 t.as_ptr(),
@@ -118,7 +118,7 @@ where
     }
 
     fn register_impl(&mut self) {
-        info!(
+        trace!(
             "Registering new poller '{}' on {}",
             self.dbg_name(),
             Thread::current_info(),
@@ -147,7 +147,7 @@ where
     }
 
     fn stop(&mut self) {
-        info!(
+        trace!(
             "Stopping poller '{}' on {}",
             self.dbg_name(),
             Thread::current_info()
@@ -161,7 +161,7 @@ where
     }
 
     fn unregister(&mut self) {
-        info!(
+        trace!(
             "Unregistering poller '{}' on {}",
             self.dbg_name(),
             Thread::current_info()
@@ -176,7 +176,7 @@ where
         }
 
         if let Some(t) = self.thread.take() {
-            info!(
+            trace!(
                 "Exiting poller thread '{}' ({:p}): '{}' ({:p})",
                 self.dbg_name(),
                 self,
@@ -409,7 +409,7 @@ where
 
         ctx.register();
 
-        debug!("New poller context '{}' ({:p})", ctx.dbg_name(), ctx);
+        trace!("New poller context '{}' ({:p})", ctx.dbg_name(), ctx);
 
         Poller {
             inner: Some(ctx),
