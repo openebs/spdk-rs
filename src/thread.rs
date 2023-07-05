@@ -65,7 +65,7 @@ impl Thread {
 
     /// Marks thread as exiting.
     pub fn exit(&self) {
-        debug!("Exiting SPDK thread: {:?}", self);
+        trace!("Exiting SPDK thread: {:?}", self);
 
         let _g = CurrentThreadGuard::new();
         self.set_current();
@@ -76,7 +76,7 @@ impl Thread {
 
     /// Marks a thread as exiting, and waits until it exits by polling it.
     pub fn wait_exit(&self) {
-        debug!("Waiting SPDK thread to exit: {:?}", self);
+        trace!("Waiting SPDK thread to exit: {:?}", self);
 
         let _g = CurrentThreadGuard::new();
 
@@ -97,7 +97,7 @@ impl Thread {
     /// Only an exited thread can be safely destroyed, so client code
     /// must ensure the thread has exited before destroying it.
     pub fn destroy(self) {
-        debug!("Destroying SPDK thread: {:?}", self);
+        trace!("Destroying SPDK thread: {:?}", self);
 
         assert!(self.is_exited());
 
@@ -265,7 +265,7 @@ impl Thread {
                 &set,
             );
 
-            debug!("pthread started on core {}", libc::sched_getcpu());
+            trace!("pthread started on core {}", libc::sched_getcpu());
         }
     }
 
