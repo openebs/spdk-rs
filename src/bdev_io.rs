@@ -5,6 +5,7 @@ use std::{
     marker::PhantomData,
     os::raw::c_void,
     ptr::NonNull,
+    slice::{from_raw_parts, from_raw_parts_mut},
 };
 
 use crate::{
@@ -20,10 +21,19 @@ use crate::{
     BdevOps,
     IoStatus,
     IoType,
+    IoVec,
 };
 
-/// TODO
-pub type IoVec = crate::libspdk::iovec;
+/// Trait to cast an array-like container to an array of `IoVec`.
+pub trait AsIoVecs {
+    /// Casts an object to a slice of `IoVec`.
+    #[inline(always)]
+    fn as_io_vecs(&self) -> &[IoVec];
+
+    /// Casts a mutable object to a mutable slice of `IoVec`.
+    #[inline(always)]
+    fn as_io_vecs_mut(&mut self) -> &mut [IoVec];
+}
 
 /// Wrapper for SPDK `spdk_bdev_io` data structure.
 ///
@@ -100,17 +110,27 @@ where
     }
 
     /// TODO
-    /// -- get a raw pointer to the base of the iov
-    #[inline]
-    pub fn iovs(&self) -> *mut IoVec {
-        unsafe { self.as_ref().u.bdev.iovs }
+    #[inline(always)]
+    pub fn iovs(&self) -> &[IoVec] {
+        unsafe {
+            let bdev = self.as_ref().u.bdev;
+            std::slice::from_raw_parts(
+                bdev.iovs as *const IoVec,
+                bdev.iovcnt as usize,
+            )
+        }
     }
 
     /// TODO
-    /// -- number of iovs that are part of this IO
-    #[inline]
-    pub fn iov_count(&self) -> i32 {
-        unsafe { self.as_ref().u.bdev.iovcnt }
+    #[inline(always)]
+    pub fn iovs_mut(&self) -> &mut [IoVec] {
+        unsafe {
+            let bdev = self.as_ref().u.bdev;
+            std::slice::from_raw_parts_mut(
+                bdev.iovs as *mut IoVec,
+                bdev.iovcnt as usize,
+            )
+        }
     }
 
     /// TODO
@@ -146,14 +166,8 @@ where
     #[inline]
     #[allow(dead_code)]
     pub fn need_buf(&self) -> bool {
-        unsafe {
-            let slice = std::slice::from_raw_parts_mut(
-                self.iovs(),
-                self.iov_count() as usize,
-            );
-
-            slice[0].iov_base.is_null()
-        }
+        let slice = self.iovs();
+        !slice[0].is_initialized()
     }
 
     /// Returns a mutable reference to the driver context specific for this IO.

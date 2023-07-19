@@ -10,11 +10,15 @@ use std::{
 
 use snafu::Snafu;
 
-use crate::libspdk::{
-    spdk_dma_free,
-    spdk_zmalloc,
-    SPDK_ENV_LCORE_ID_ANY,
-    SPDK_MALLOC_DMA,
+use crate::{
+    libspdk::{
+        spdk_dma_free,
+        spdk_zmalloc,
+        SPDK_ENV_LCORE_ID_ANY,
+        SPDK_MALLOC_DMA,
+    },
+    AsIoVecs,
+    IoVec,
 };
 
 #[derive(Debug, Snafu, Clone)]
@@ -23,44 +27,39 @@ pub enum DmaError {
     Alloc {},
 }
 
-/// DmaBuf that is allocated from the memory pool.
+/// `DmaBuf` that is allocated from the memory pool.
+/// It has the same representation as `IoVec` and SPDK's `iovec`, and can be
+/// used in place of them. `DmaBuf` owns its buffer and deallocates on drop,
+/// while `IoVec` does not do that as it is just a Rust-style interface for
+/// `iovec`.
 #[derive(Debug)]
-pub struct DmaBuf {
-    /// A raw pointer to the buffer.
-    buf: *mut c_void,
-    /// The length of the allocated buffer.
-    length: u64,
-}
+#[repr(transparent)]
+pub struct DmaBuf(IoVec);
 
 // TODO: is `DmaBuf` really a Send type?
 unsafe impl Send for DmaBuf {}
 
+impl Drop for DmaBuf {
+    fn drop(&mut self) {
+        unsafe { spdk_dma_free(self.as_mut_ptr() as *mut c_void) }
+    }
+}
+
+impl Deref for DmaBuf {
+    type Target = IoVec;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for DmaBuf {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl DmaBuf {
-    /// Convert the buffer to a slice.
-    pub fn as_slice(&self) -> &[u8] {
-        unsafe { from_raw_parts(self.buf as *mut u8, self.length as usize) }
-    }
-
-    /// Converts the buffer to a mutable slice.
-    pub fn as_mut_slice(&mut self) -> &mut [u8] {
-        unsafe { from_raw_parts_mut(self.buf as *mut u8, self.length as usize) }
-    }
-
-    /// Fills the buffer with the given value.
-    ///
-    /// # Arguments
-    ///
-    /// * `val`: TODO
-    pub fn fill(&mut self, val: u8) {
-        unsafe {
-            std::ptr::write_bytes(
-                self.as_mut_slice().as_ptr() as *mut u8,
-                val,
-                self.length as usize,
-            )
-        }
-    }
-
     /// Allocates a buffer suitable for IO (wired and backed by huge page
     /// memory).
     ///
@@ -69,9 +68,8 @@ impl DmaBuf {
     /// * `size`: TODO
     /// * `alignment`: TODO
     pub fn new(size: u64, alignment: u64) -> Result<Self, DmaError> {
-        let buf;
-        unsafe {
-            buf = spdk_zmalloc(
+        let buf = unsafe {
+            spdk_zmalloc(
                 size,
                 alignment,
                 std::ptr::null_mut(),
@@ -83,41 +81,37 @@ impl DmaBuf {
         if buf.is_null() {
             Err(DmaError::Alloc {})
         } else {
-            Ok(DmaBuf {
-                buf,
-                length: size,
-            })
+            Ok(Self(IoVec::new(buf, size)))
         }
     }
 
-    /// Returns length of the allocated buffer.
-    pub fn len(&self) -> u64 {
-        self.length
-    }
-
-    /// Returns if the length of the allocated buffer is empty.
-    /// Pretty useless but the best friends len and is_empty cannot be parted.
-    pub fn is_empty(&self) -> bool {
-        self.length == 0
+    /// Returns an `IoVec` instance pointing to this buffer.
+    #[inline(always)]
+    pub fn to_io_vec(&self) -> IoVec {
+        self.0
     }
 }
 
-impl Deref for DmaBuf {
-    type Target = *mut c_void;
+impl AsIoVecs for [DmaBuf] {
+    #[inline(always)]
+    fn as_io_vecs(&self) -> &[IoVec] {
+        unsafe { from_raw_parts(self.as_ptr() as *const IoVec, self.len()) }
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &self.buf
+    #[inline(always)]
+    fn as_io_vecs_mut(&mut self) -> &mut [IoVec] {
+        unsafe { from_raw_parts_mut(self.as_ptr() as *mut IoVec, self.len()) }
     }
 }
 
-impl DerefMut for DmaBuf {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.buf
+impl AsIoVecs for Vec<DmaBuf> {
+    #[inline(always)]
+    fn as_io_vecs(&self) -> &[IoVec] {
+        unsafe { from_raw_parts(self.as_ptr() as *const IoVec, self.len()) }
     }
-}
 
-impl Drop for DmaBuf {
-    fn drop(&mut self) {
-        unsafe { spdk_dma_free(self.buf as *mut c_void) }
+    #[inline(always)]
+    fn as_io_vecs_mut(&mut self) -> &mut [IoVec] {
+        unsafe { from_raw_parts_mut(self.as_ptr() as *mut IoVec, self.len()) }
     }
 }
