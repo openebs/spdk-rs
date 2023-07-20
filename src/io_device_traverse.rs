@@ -49,22 +49,27 @@ impl From<ChannelTraverseStatus> for i32 {
 /// * `'c`: TODO
 /// * `'ChannelData`: TODO
 /// * `'Ctx`: TODO
-struct TraverseCtx<'a, 'b, 'c, ChannelData, Ctx> {
+struct TraverseCtx<'a, 'b, 'c, ChannelData, Ctx, TrCtx> {
     /// TODO
     channel_cb: Box<
-        dyn FnMut(&mut ChannelData, &mut Ctx) -> ChannelTraverseStatus + 'a,
+        dyn FnMut(&mut ChannelData, &mut Ctx, &TrCtx) -> ChannelTraverseStatus
+            + 'a,
     >,
     /// TODO
     done_cb: Box<dyn FnMut(ChannelTraverseStatus, Ctx) + 'b>,
     /// TODO
     ctx: Ctx,
     /// TODO
+    dev_ctx: TrCtx,
+    /// TODO
     _cd: PhantomData<ChannelData>,
     /// TODO
     _c: PhantomData<&'c ()>,
 }
 
-impl<'a, 'b, 'c, ChannelData, Ctx> TraverseCtx<'a, 'b, 'c, ChannelData, Ctx> {
+impl<'a, 'b, 'c, ChannelData, Ctx, TrCtx>
+    TraverseCtx<'a, 'b, 'c, ChannelData, Ctx, TrCtx>
+{
     /// TODO
     ///
     /// # Arguments
@@ -73,15 +78,17 @@ impl<'a, 'b, 'c, ChannelData, Ctx> TraverseCtx<'a, 'b, 'c, ChannelData, Ctx> {
     /// * `done_cb`: TODO
     /// * `caller_ctx`: TODO
     fn new(
-        channel_cb: impl FnMut(&mut ChannelData, &mut Ctx) -> ChannelTraverseStatus
+        channel_cb: impl FnMut(&mut ChannelData, &mut Ctx, &TrCtx) -> ChannelTraverseStatus
             + 'a,
         done_cb: impl FnMut(ChannelTraverseStatus, Ctx) + 'b,
         caller_ctx: Ctx,
+        dev_ctx: TrCtx,
     ) -> Self {
         Self {
             channel_cb: Box::new(channel_cb),
             done_cb: Box::new(done_cb),
             ctx: caller_ctx,
+            dev_ctx,
             _cd: Default::default(),
             _c: Default::default(),
         }
@@ -108,25 +115,30 @@ pub trait IoDeviceChannelTraverse: IoDevice {
     /// * `channel_cb`: TODO
     /// * `done_cb`: TODO
     /// * `context`: TODO
-    fn traverse_io_channels<'a, 'b, Ctx>(
+    fn traverse_io_channels<'a, 'b, Ctx, TrCtx>(
         &self,
         context: Ctx,
         channel_cb: impl FnMut(
                 &mut <Self as IoDevice>::ChannelData,
                 &mut Ctx,
+                &TrCtx,
             ) -> ChannelTraverseStatus
             + 'a,
         done_cb: impl FnMut(ChannelTraverseStatus, Ctx) + 'b,
+        dev_ctx: TrCtx,
     ) {
-        let ctx = Box::new(TraverseCtx::new(channel_cb, done_cb, context));
+        let ctx =
+            Box::new(TraverseCtx::new(channel_cb, done_cb, context, dev_ctx));
 
         // Start I/O channel iteration via SPDK.
         unsafe {
             spdk_for_each_channel(
                 self.get_io_device_id(),
-                Some(inner_traverse_channel::<Self::ChannelData, Ctx>),
+                Some(inner_traverse_channel::<Self::ChannelData, Ctx, TrCtx>),
                 Box::into_raw(ctx) as *mut c_void,
-                Some(inner_traverse_channel_done::<Self::ChannelData, Ctx>),
+                Some(
+                    inner_traverse_channel_done::<Self::ChannelData, Ctx, TrCtx>,
+                ),
             );
         }
     }
@@ -151,6 +163,7 @@ pub trait IoDeviceChannelTraverse: IoDevice {
             ctx,
             TraverseAsyncCtx::channel_cb,
             TraverseAsyncCtx::channel_done,
+            false,
         );
 
         recv.await
@@ -164,13 +177,14 @@ pub trait IoDeviceChannelTraverse: IoDevice {
 /// # Arguments
 ///
 /// * `i`: TODO
-extern "C" fn inner_traverse_channel<ChannelData, Ctx>(
+extern "C" fn inner_traverse_channel<ChannelData, Ctx, TrCtx>(
     i: *mut spdk_io_channel_iter,
 ) {
-    let ctx = TraverseCtx::<ChannelData, Ctx>::from_iter(i);
+    let ctx = TraverseCtx::<ChannelData, Ctx, TrCtx>::from_iter(i);
     let mut chan = IoChannel::<ChannelData>::from_iter(i);
 
-    let rc = (ctx.channel_cb)(chan.channel_data_mut(), &mut ctx.ctx);
+    let rc =
+        (ctx.channel_cb)(chan.channel_data_mut(), &mut ctx.ctx, &ctx.dev_ctx);
 
     unsafe {
         spdk_for_each_channel_continue(i, rc.into());
@@ -178,13 +192,13 @@ extern "C" fn inner_traverse_channel<ChannelData, Ctx>(
 }
 
 /// Low-level completion callback for SPDK I/O channel enumeration logic.
-extern "C" fn inner_traverse_channel_done<ChannelData, Ctx>(
+extern "C" fn inner_traverse_channel_done<ChannelData, Ctx, TrCtx>(
     i: *mut spdk_io_channel_iter,
     status: i32,
 ) {
     // Reconstruct the context box to let all the resources be properly
     // dropped.
-    let ctx = TraverseCtx::<ChannelData, Ctx>::from_iter(i);
+    let ctx = TraverseCtx::<ChannelData, Ctx, TrCtx>::from_iter(i);
     let mut ctx = unsafe { Box::from_raw(ctx) };
     (ctx.done_cb)(status.into(), ctx.ctx);
 }
@@ -212,6 +226,7 @@ where
     fn channel_cb(
         channel: &mut D::ChannelData,
         ctx: &mut Self,
+        _used: &bool, // unused param for API compatibility.
     ) -> ChannelTraverseStatus {
         (ctx.func)(channel, &ctx.data);
         ChannelTraverseStatus::Ok
