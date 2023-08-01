@@ -38,6 +38,7 @@ mod io_channel;
 mod io_device_traverse;
 mod io_devices;
 mod io_type;
+mod io_vec;
 mod json_write_context;
 mod nvme;
 mod poller;
@@ -51,7 +52,7 @@ pub use crate::{
     bdev_async::{BdevAsyncCallContext, BdevStats},
     bdev_builder::BdevBuilder,
     bdev_desc::{BdevDesc, BdevDescError, BdevEvent, LbaRange, LbaRangeLock},
-    bdev_io::{BdevIo, IoVec},
+    bdev_io::BdevIo,
     bdev_iter::{BdevGlobalIter, BdevModuleIter},
     bdev_module::{
         BdevModule,
@@ -70,6 +71,7 @@ pub use crate::{
     io_device_traverse::{ChannelTraverseStatus, IoDeviceChannelTraverse},
     io_devices::IoDevice,
     io_type::{IoStatus, IoType},
+    io_vec::{AsIoVecPtr, AsIoVecs, IoVec},
     json_write_context::JsonWriteContext,
     nvme::{
         nvme_admin_opc,
