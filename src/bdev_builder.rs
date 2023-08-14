@@ -48,6 +48,13 @@ where
     module: &'m BdevModule,
     fn_table: Option<spdk_bdev_fn_table>,
     data: Option<BdevData>,
+    zoned: Option<bool>,
+    num_zones: Option <u64>,
+    zone_size: Option <u64>,
+    max_zone_append_size: Option <u32>,
+    max_open_zones: Option <u32>,
+    max_active_zones: Option <u32>,
+    optimal_open_zones: Option <u32>,
 }
 
 impl<'m, BdevData> BdevBuilder<'m, BdevData>
@@ -70,6 +77,13 @@ where
             module: bdev_mod,
             fn_table: None,
             data: None,
+            zoned: None,
+            num_zones: None,
+            zone_size: None,
+            max_zone_append_size: None,
+            max_open_zones: None,
+            max_active_zones: None,
+            optimal_open_zones: None,
         }
     }
 
@@ -163,6 +177,83 @@ where
         self
     }
 
+    /// Sets Bdev zoned.
+    /// This Bdev parameter is manadory.
+    ///
+    /// # Arguments
+    ///
+    /// * `val`: TODO
+    pub fn with_zoned(mut self, val: bool) -> Self {
+        self.zoned = Some(val);
+        self
+    }
+
+    /// Sets Bdev num_zones.
+    /// This Bdev parameter is optional.
+    ///
+    /// # Arguments
+    ///
+    /// * `val`: TODO
+    pub fn with_num_zones(mut self, val: u64) -> Self {
+        self.num_zones = Some(val);
+        self
+    }
+
+    /// Sets Bdev zone_size.
+    /// This Bdev parameter is optional.
+    ///
+    /// # Arguments
+    ///
+    /// * `val`: TODO
+    pub fn with_zone_size(mut self, val: u64) -> Self {
+        self.zone_size = Some(val);
+        self
+    }
+
+    /// Sets Bdev max_zone_append_size.
+    /// This Bdev parameter is optional.
+    ///
+    /// # Arguments
+    ///
+    /// * `val`: TODO
+    pub fn with_max_zone_append_size(mut self, val: u32) -> Self {
+        self.max_zone_append_size = Some(val);
+        self
+    }
+
+    /// Sets Bdev max_open_zones.
+    /// This Bdev parameter is optional.
+    ///
+    /// # Arguments
+    ///
+    /// * `val`: TODO
+    pub fn with_max_open_zones(mut self, val: u32) -> Self {
+        self.max_open_zones = Some(val);
+        self
+    }
+
+    /// Sets Bdev max_active_zones.
+    /// This Bdev parameter is optional.
+    ///
+    /// # Arguments
+    ///
+    /// * `val`: TODO
+    pub fn with_max_active_zones(mut self, val: u32) -> Self {
+        self.max_active_zones = Some(val);
+        self
+    }
+
+    /// Sets Bdev optimal_open_zones.
+    /// This Bdev parameter is optional.
+    ///
+    /// # Arguments
+    ///
+    /// * `val`: TODO
+    pub fn with_optimal_open_zones(mut self, val: u32) -> Self {
+        self.optimal_open_zones = Some(val);
+        self
+    }
+
     /// Consumes a `BdevBuilder` instance and produces a new `Bdev` instance.
     pub fn build(self) -> Bdev<BdevData> {
         // Create a new container for the Bdev data, `spdk_bdev` itself and
@@ -202,12 +293,32 @@ where
                 dif_type: Default::default(),
                 dif_is_head_of_md: Default::default(),
                 dif_check_flags: Default::default(),
-                zoned: Default::default(),
-                zone_size: Default::default(),
-                max_zone_append_size: Default::default(),
-                max_open_zones: Default::default(),
-                max_active_zones: Default::default(),
-                optimal_open_zones: Default::default(),
+                zoned: self.zoned.expect("Bdev zoned must be set"),
+                zone_size: if self.zoned.unwrap() {
+                    self.zone_size.expect("Bdev zone_size must be set")
+                } else {
+                    Default::default()
+                },
+                max_zone_append_size: if self.zoned.unwrap() {
+                    self.max_zone_append_size.expect("Bdev max_zone_append_size must be set")
+                } else {
+                    Default::default()
+                },
+                max_open_zones: if self.zoned.unwrap() {
+                    self.max_open_zones.expect("Bdev max_open_zones must be set")
+                } else {
+                    Default::default()
+                },
+                max_active_zones: if self.zoned.unwrap() {
+                    self.max_active_zones.expect("Bdev max_active_zones must be set")
+                } else {
+                    Default::default()
+                },
+                optimal_open_zones: if self.zoned.unwrap() {
+                    self.optimal_open_zones.expect("Bdev optimal_open_zones must be set")
+                } else {
+                    Default::default()
+                },
                 media_events: Default::default(),
                 reset_io_drain_timeout:
                     SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE as u16,

@@ -32,6 +32,13 @@ use crate::{
         spdk_bdev_module_release_bdev,
         spdk_bdev_register,
         spdk_bdev_unregister,
+        spdk_bdev_is_zoned,
+        spdk_bdev_get_zone_size,
+        spdk_bdev_get_num_zones,
+        spdk_bdev_get_max_zone_append_size,
+        spdk_bdev_get_max_open_zones,
+        spdk_bdev_get_max_active_zones,
+        spdk_bdev_get_optimal_open_zones,
     },
     BdevIo,
     BdevModule,
@@ -266,8 +273,61 @@ where
         }
     }
 
+    /// Returns true if this Bdev supports the ZNS command set.
+    pub fn is_zoned(&self) -> bool {
+        unsafe{
+            spdk_bdev_is_zoned(self.unsafe_inner_ptr())
+        }
+    }
+
+    /// Get device zone size in logical blocks.
+    pub fn get_zone_size(&self) -> u64 {
+        unsafe {
+            spdk_bdev_get_zone_size(self.unsafe_inner_ptr())
+        }
+    }
+
+    /// Get the number of zones for the given device.
+    pub fn get_num_zones(&self) -> u64 {
+        unsafe {
+            spdk_bdev_get_num_zones(self.unsafe_inner_ptr())
+        }
+    }
+
+    /// Get device maximum zone append data transfer size in logical blocks.
+    pub fn get_max_zone_append_size(&self) -> u32 {
+        unsafe {
+            spdk_bdev_get_max_zone_append_size(self.unsafe_inner_ptr())
+        }
+    }
+
+    /// Get device maximum number of open zones.
+    pub fn get_max_open_zones(&self) -> u32 {
+        unsafe {
+            spdk_bdev_get_max_open_zones(self.unsafe_inner_ptr())
+        }
+    }
+
+    /// Get device maximum number of active zones.
+    pub fn get_max_active_zones(&self) -> u32 {
+        unsafe {
+            spdk_bdev_get_max_active_zones(self.unsafe_inner_ptr())
+        }
+    }
+
+    /// Get device optimal number of open zones.
+    pub fn get_optimal_open_zones(&self) -> u32 {
+        unsafe {
+            spdk_bdev_get_optimal_open_zones(self.unsafe_inner_ptr())
+        }
+    }
+
     /// Determines whenever the Bdev supports the requested I/O type.
     pub fn io_type_supported(&self, io_type: IoType) -> bool {
+        if self.is_zoned() && io_type == IoType::ZoneAppend {
+            debug!("Always claiming to support zone append such that the exposed NVMe-oF nexus is not set to read only by the kernel. The nexus logic strictly rejects zone append commands.");
+            return true;
+        }
         unsafe {
             spdk_bdev_io_type_supported(self.as_inner_ptr(), io_type.into())
         }

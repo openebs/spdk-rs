@@ -199,7 +199,15 @@ pub enum CommandSpecificStatusCode {
     InvalidProtectionInfo,
     AttemptedWriteToRoRange,
     CmdSizeLimitSizeExceeded,
-    Unknown,
+    ZonedBoundaryError,
+    ZoneIsFull,
+    ZoneIsReadOnly,
+    ZoneIsOffline,
+    ZoneInvalidWrite,
+    TooManyActiveZones,
+    TooManyOpenZones,
+    InvalidZoneStateTransition,
+    Unknown(i32),
 }
 
 impl From<i32> for CommandSpecificStatusCode {
@@ -247,7 +255,15 @@ impl From<i32> for CommandSpecificStatusCode {
             0x81 => Self::InvalidProtectionInfo,
             0x82 => Self::AttemptedWriteToRoRange,
             0x83 => Self::CmdSizeLimitSizeExceeded,
-            _ => Self::Unknown,
+            0xb8 => Self::ZonedBoundaryError,
+            0xb9 => Self::ZoneIsFull,
+            0xba => Self::ZoneIsReadOnly,
+            0xbb => Self::ZoneIsOffline,
+            0xbc => Self::ZoneInvalidWrite,
+            0xbd => Self::TooManyActiveZones,
+            0xbe => Self::TooManyOpenZones,
+            0xbf => Self::InvalidZoneStateTransition,
+            status_code => Self::Unknown(status_code),
         }
     }
 }
