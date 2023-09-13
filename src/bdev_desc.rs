@@ -8,6 +8,7 @@ use crate::{
     libspdk::{
         bdev_lock_lba_range,
         bdev_unlock_lba_range,
+        lba_range,
         spdk_bdev,
         spdk_bdev_close,
         spdk_bdev_desc,
@@ -354,6 +355,7 @@ struct LockContext<T: BdevOps> {
 
 impl<T: BdevOps> LockContext<T> {
     unsafe extern "C" fn lba_op_completion_cb(
+        _range: *mut lba_range,
         ctx: *mut ::std::os::raw::c_void,
         status: ::std::os::raw::c_int,
     ) {
