@@ -4,3 +4,4 @@
 **/rust-tags.*
 /.vagrant
 .idea
+.pregenerated

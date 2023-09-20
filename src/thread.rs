@@ -35,13 +35,22 @@ unsafe impl Send for Thread {}
 
 impl Debug for Thread {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "'{}' ({:p}) [core {}]",
-            self.name(),
-            self.as_ptr(),
-            Cores::current(),
-        )
+        if f.alternate() {
+            write!(
+                f,
+                "{core}::{name} ({addr:p})",
+                core = Cores::current(),
+                name = self.name(),
+                addr = self.as_ptr(),
+            )
+        } else {
+            write!(
+                f,
+                "{core}::{name}",
+                core = Cores::current(),
+                name = self.name(),
+            )
+        }
     }
 }
 
