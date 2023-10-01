@@ -93,6 +93,7 @@ where
             get_memory_domains: None,
             dump_device_stat_json: None,
             reset_device_stat: None,
+            accel_sequence_supported: None,
         });
         self.data = Some(ctx);
         self
