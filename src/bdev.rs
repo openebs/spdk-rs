@@ -1,8 +1,8 @@
-///! Wrappers for SPDK `spdk_bdev` structure and the related API.
+//! Wrappers for SPDK `spdk_bdev` structure and the related API.
 use std::{
     ffi::CString,
-    marker::PhantomData,
-    marker::PhantomPinned,
+    fmt::{Debug, Formatter},
+    marker::{PhantomData, PhantomPinned},
     os::raw::c_void,
     pin::Pin,
     ptr::{null_mut, NonNull},
@@ -373,6 +373,36 @@ where
         Self {
             inner: self.inner,
             _data: Default::default(),
+        }
+    }
+}
+
+impl<BdevData> Debug for Bdev<BdevData>
+where
+    BdevData: BdevOps,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            f.debug_struct("Bdev")
+                .field("module", &self.module_name())
+                .field("product_name", &self.product_name())
+                .field("name", &self.name())
+                .field("uuid", &self.uuid_as_string())
+                .field("aliases", &self.aliases())
+                .field("num_blocks", &self.num_blocks())
+                .field("block_len", &self.block_len())
+                .field("claimed_by", &self.first_claim_module_name())
+                .field("ptr", &unsafe { self.unsafe_inner_ptr() })
+                .finish()
+        } else {
+            write!(
+                f,
+                "{m}::{name} {sz}x{blk} bytes",
+                m = self.module_name(),
+                name = self.name(),
+                sz = self.num_blocks(),
+                blk = self.block_len(),
+            )
         }
     }
 }

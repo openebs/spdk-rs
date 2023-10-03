@@ -41,6 +41,7 @@ mod io_type;
 mod io_vec;
 mod json_write_context;
 mod nvme;
+mod nvmf;
 mod poller;
 mod thread;
 mod unsafe_types;
@@ -80,11 +81,9 @@ pub use crate::{
         nvme_reservation_register_action,
         nvme_reservation_register_cptpl,
         nvme_reservation_type,
-        GenericStatusCode,
-        MediaErrorStatusCode,
         NvmeStatus,
-        PathStatusCode,
     },
+    nvmf::{NvmfController, NvmfSubsystemEvent},
     poller::{Poller, PollerBuilder},
     thread::{CurrentThreadGuard, Thread},
     unsafe_types::{UnsafeData, UnsafeRef},

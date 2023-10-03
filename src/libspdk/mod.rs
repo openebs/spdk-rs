@@ -12,3 +12,10 @@ include!(concat!(env!("OUT_DIR"), "/libspdk.rs"));
 // This has to be done every time SPDK is changed.
 #[cfg(not(target_os = "linux"))]
 include!("../../.pregenerated/libspdk.rs");
+
+// Expose all the NVME code at module level.
+pub use spdk_nvme_command_specific_status_code::*;
+pub use spdk_nvme_generic_command_status_code::*;
+pub use spdk_nvme_media_error_status_code::*;
+pub use spdk_nvme_path_status_code::*;
+pub use spdk_nvme_status_code_type::*;

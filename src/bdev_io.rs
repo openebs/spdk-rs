@@ -133,15 +133,13 @@ where
         }
     }
 
-    /// TODO
-    /// -- offset where we do the IO on the device
+    /// Offset of the first block where we do the I/O on the device.
     #[inline]
     pub fn offset(&self) -> u64 {
         unsafe { self.as_ref().u.bdev.offset_blocks }
     }
 
-    /// TODO
-    /// -- num of blocks this IO will read/write/unmap
+    /// Number of blocks this I/O will affect.
     #[inline]
     pub fn num_blocks(&self) -> u64 {
         unsafe { self.as_ref().u.bdev.num_blocks }
@@ -153,8 +151,7 @@ where
         self.as_ref().internal.status.into()
     }
 
-    /// TODO
-    /// -- get the block length of this IO
+    /// Returns the block length for this I/O.
     #[inline]
     #[allow(dead_code)]
     pub fn block_len(&self) -> u32 {
@@ -291,16 +288,28 @@ where
     BdevData: BdevOps,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "bdev: {} offset: {:?}, num_blocks: {:?}, type: {:?} status: {:?}, {:p} ",
-            self.bdev().name(),
-            self.offset(),
-            self.num_blocks(),
-            self.io_type(),
-            self.status(),
-            self.as_ptr(),
-        )
+        if f.alternate() {
+            f.debug_struct("Bdev I/O")
+                .field("bdev_module", &self.bdev().module_name())
+                .field("bdev_name", &self.bdev().name())
+                .field("io_type", &self.io_type())
+                .field("status", &self.status())
+                .field("offset", &self.offset())
+                .field("num_blocks", &self.num_blocks())
+                .field("ptr", &unsafe { self.legacy_as_ptr() })
+                .finish()
+        } else {
+            write!(
+                f,
+                "{t:?} {s:?} {a}..{b} ({nblk}) on {bdev:?}",
+                t = self.io_type(),
+                s = self.status(),
+                a = self.offset(),
+                b = self.offset() + self.num_blocks(),
+                nblk = self.num_blocks(),
+                bdev = self.bdev(),
+            )
+        }
     }
 }
 

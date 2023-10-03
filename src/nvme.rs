@@ -1,35 +1,192 @@
-///! TODO
+use nix::errno::Errno;
+use std::{
+    fmt::{Debug, Formatter},
+    mem::transmute,
+};
+
 use crate::libspdk::{
     spdk_bdev_io,
     spdk_bdev_io_get_nvme_status,
+    spdk_nvme_command_specific_status_code,
     spdk_nvme_cpl,
+    spdk_nvme_generic_command_status_code,
+    spdk_nvme_media_error_status_code,
+    spdk_nvme_path_status_code,
+    spdk_nvme_status,
+    spdk_nvme_status_code_type,
+    spdk_nvmf_request,
+    SPDK_NVME_SCT_COMMAND_SPECIFIC,
+    SPDK_NVME_SCT_GENERIC,
+    SPDK_NVME_SCT_MEDIA_ERROR,
+    SPDK_NVME_SCT_PATH,
+    SPDK_NVME_SCT_VENDOR_SPECIFIC,
+    SPDK_NVME_SC_DATA_TRANSFER_ERROR,
+    SPDK_NVME_SC_DEALLOCATED_OR_UNWRITTEN_BLOCK,
+    SPDK_NVME_SC_SUCCESS,
 };
 
-/// Corresponds to `spdk_nvme_status`, `spdk_nvme_status_code_type`.
-#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
-pub enum NvmeStatus {
-    Generic(GenericStatusCode),
-    CommandSpecific(CommandSpecificStatusCode),
-    MediaError(MediaErrorStatusCode),
-    Path(PathStatusCode),
-    VendorSpecific(i32),
-    Reserved(i32),
-    Unknown(i32),
+/// Accessors for `spdk_nvme_cpl` (completion queue entry) struct.
+impl spdk_nvme_cpl {
+    /// Returns NVME status word.
+    pub fn status(&self) -> spdk_nvme_status {
+        unsafe { self.__bindgen_anon_1.status }
+    }
+
+    /// Sets NVME status word.
+    pub fn set_status(&mut self, status: spdk_nvme_status) {
+        unsafe {
+            self.__bindgen_anon_1.status = status;
+        }
+    }
 }
 
+/// Accessors for `spdk_nvmf_request` struct.
+impl spdk_nvmf_request {
+    /// Returns a reference to the request's completion queue entry.
+    pub fn nvme_cpl(&self) -> &spdk_nvme_cpl {
+        unsafe { &((*self.rsp).nvme_cpl) }
+    }
+
+    /// Returns a mutable reference to the request's completion queue entry.
+    pub fn nvme_cpl_mut(&mut self) -> &mut spdk_nvme_cpl {
+        // spdk_nvme_power_state
+        unsafe { &mut ((*self.rsp).nvme_cpl) }
+    }
+}
+
+/// Accessors for `spdk_nvme_status` struct.
+impl spdk_nvme_status {
+    /// Converts self to `NvmeStatus`.
+    pub fn status(&self) -> NvmeStatus {
+        NvmeStatus::from(*self)
+    }
+}
+
+/// Status code types.
+#[derive(Copy, Clone, Eq, PartialOrd, PartialEq)]
+pub enum NvmeStatus {
+    /// Generic command status codes.
+    /// Corresponds to `spdk_nvme_generic_command_status_code` grouping.
+    Generic(spdk_nvme_generic_command_status_code),
+
+    /// Command specific status codes.
+    /// Corresponds to `spdk_nvme_command_specific_status_code` grouping.
+    CmdSpecific(spdk_nvme_command_specific_status_code),
+
+    /// Media error status codes.
+    /// Corresponds to `spdk_nvme_media_error_status_code` grouping.
+    Media(spdk_nvme_media_error_status_code),
+
+    /// Path related status codes.
+    /// Corresponds to `spdk_nvme_path_status_code` grouping.
+    Path(spdk_nvme_path_status_code),
+
+    /// Vendor-specific codes.
+    VendorSpecific(i32),
+
+    /// Unknown code.
+    Unknown(i32, i32),
+}
+
+impl NvmeStatus {
+    /// Shorthand for a success code.
+    pub const SUCCESS: Self = NvmeStatus::Generic(SPDK_NVME_SC_SUCCESS);
+
+    /// Shorthand for SPDK_NVME_SC_DEALLOCATED_OR_UNWRITTEN_BLOCK.
+    pub const UNWRITTEN_BLOCK: Self =
+        Self::Media(SPDK_NVME_SC_DEALLOCATED_OR_UNWRITTEN_BLOCK);
+
+    /// Shorthand for a vendor-specific ENOSPC error.
+    pub const NO_SPACE: Self = Self::VendorSpecific(Errno::ENOSPC as i32);
+
+    /// A shorthand for a generic data transfer error.
+    pub const DATA_TRANSFER_ERROR: Self =
+        NvmeStatus::Generic(SPDK_NVME_SC_DATA_TRANSFER_ERROR);
+
+    /// TODO
+    pub fn as_sct_sc_codes(&self) -> (i32, i32) {
+        unsafe {
+            match *self {
+                Self::Generic(c) => {
+                    (transmute(SPDK_NVME_SCT_GENERIC), transmute(c))
+                }
+                Self::CmdSpecific(c) => {
+                    (transmute(SPDK_NVME_SCT_COMMAND_SPECIFIC), transmute(c))
+                }
+                Self::Media(c) => {
+                    (transmute(SPDK_NVME_SCT_MEDIA_ERROR), transmute(c))
+                }
+                Self::Path(c) => (transmute(SPDK_NVME_SCT_PATH), transmute(c)),
+                Self::VendorSpecific(c) => {
+                    (transmute(SPDK_NVME_SCT_VENDOR_SPECIFIC), transmute(c))
+                }
+                Self::Unknown(sct, sc) => (transmute(sct), transmute(sc)),
+            }
+        }
+    }
+
+    /// Determines if this status is a success code.
+    #[inline(always)]
+    pub fn is_success(&self) -> bool {
+        *self == Self::SUCCESS
+    }
+
+    /// Determines if this status is a vendor-specific ENOSPC error.
+    #[inline(always)]
+    pub fn is_no_space(&self) -> bool {
+        *self == Self::NO_SPACE
+    }
+}
+
+impl Debug for NvmeStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NvmeStatus::Generic(s) => write!(f, "{s:?}"),
+            NvmeStatus::CmdSpecific(s) => write!(f, "{s:?}"),
+            NvmeStatus::Media(s) => write!(f, "{s:?}"),
+            NvmeStatus::Path(s) => write!(f, "{s:?}"),
+            NvmeStatus::VendorSpecific(s) => {
+                let s = *s;
+                let en = if s > 0 {
+                    Errno::from_i32(s)
+                } else {
+                    Errno::UnknownErrno
+                };
+
+                if en == Errno::UnknownErrno {
+                    write!(f, "SPDK_NVME_SCT_VENDOR_SPECIFIC ({s})")
+                } else {
+                    write!(f, "SPDK_NVME_SCT_VENDOR_SPECIFIC ({en}: {s})")
+                }
+            }
+            NvmeStatus::Unknown(sct, sc) => write!(f, "UNKNOWN ({sct},{sc})"),
+        }
+    }
+}
+
+/// Converts `spdk_nvme_status` into `NvmeStatus`.
+impl From<spdk_nvme_status> for NvmeStatus {
+    fn from(s: spdk_nvme_status) -> Self {
+        Self::from((s.sct().into(), s.sc().into()))
+    }
+}
+
+/// Converts a (sct, sc) pair into `NvmeStatus`.
 impl From<(i32, i32)> for NvmeStatus {
     fn from(s: (i32, i32)) -> Self {
-        let sct = s.0;
-        let sc = s.1;
+        unsafe {
+            let (sct, sc) = s;
 
-        match sct {
-            0x00 => Self::Generic(GenericStatusCode::from(sc)),
-            0x01 => Self::CommandSpecific(CommandSpecificStatusCode::from(sc)),
-            0x02 => Self::MediaError(MediaErrorStatusCode::from(sc)),
-            0x03 => Self::Path(PathStatusCode::from(sc)),
-            0x04 | 0x05 | 0x06 => Self::Reserved(sc),
-            0x07 => Self::VendorSpecific(sc),
-            _ => Self::Unknown(sc),
+            match transmute(sct) {
+                SPDK_NVME_SCT_GENERIC => Self::Generic(transmute(sc)),
+                SPDK_NVME_SCT_COMMAND_SPECIFIC => {
+                    Self::CmdSpecific(transmute(sc))
+                }
+                SPDK_NVME_SCT_MEDIA_ERROR => Self::Media(transmute(sc)),
+                SPDK_NVME_SCT_PATH => Self::Path(transmute(sc)),
+                SPDK_NVME_SCT_VENDOR_SPECIFIC => Self::VendorSpecific(sc),
+                _ => Self::Unknown(sct, sc),
+            }
         }
     }
 }
@@ -48,267 +205,7 @@ impl From<*mut spdk_bdev_io> for NvmeStatus {
 
 impl From<*const spdk_nvme_cpl> for NvmeStatus {
     fn from(cpl: *const spdk_nvme_cpl) -> Self {
-        let (r) = unsafe {
-            let cplr = &*cpl;
-
-            (
-                cplr.__bindgen_anon_1.status.sct().into(),
-                cplr.__bindgen_anon_1.status.sc().into(),
-            )
-        };
-
-        Self::from(r)
-    }
-}
-
-/// Generic command status codes.
-/// Corresponds to `spdk_nvme_generic_command_status_code`.
-#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
-#[allow(clippy::upper_case_acronyms)]
-pub enum GenericStatusCode {
-    Success,
-    InvalidOpcode,
-    InvalidFieldInCommand,
-    CommandIDConflict,
-    DataTransferError,
-    CommandsAbortedDueToPowerLoss,
-    InternalDeviceError,
-    AbortedRequested,
-    AbortedSubmissionQueueDeleted,
-    AbortedSubmissionFailedFusedCommand,
-    AbortedSubmissionMissingFusedCommand,
-    InvalidNameSpaceOrFormat,
-    CommandSequenceError,
-    InvalidSGLDescriptor,
-    InvalidNumberOfSGLDescriptors,
-    DataSGLLengthInvalid,
-    MetaDataSGLLengthInvalid,
-    SGLTypeDescriptorInvalid,
-    InvalidUseOfControlMemoryBuffer,
-    PRPOffsetInvalid,
-    AtomicWriteUnitExceeded,
-    OperationDenied,
-    SGLOffsetInvalid,
-    HostIdentifierInvalidFormat,
-    KATOExpired,
-    KATOInvalid,
-    CommandAbortPreemt,
-    SanitizeFailed,
-    SanitizeInProgress,
-    SGLDataBlockGranularityInvalid,
-    CommandInvalidInCMB,
-    LBAOutOfRange,
-    CapacityExceeded,
-    NamespaceNotReady,
-    ReservationConflict,
-    FormatInProgress,
-    Reserved,
-}
-
-impl From<i32> for GenericStatusCode {
-    fn from(i: i32) -> Self {
-        match i {
-            0x00 => Self::Success,
-            0x01 => Self::InvalidOpcode,
-            0x02 => Self::InvalidFieldInCommand,
-            0x03 => Self::CommandIDConflict,
-            0x04 => Self::DataTransferError,
-            0x05 => Self::CommandsAbortedDueToPowerLoss,
-            0x06 => Self::InternalDeviceError,
-            0x07 => Self::AbortedRequested,
-            0x08 => Self::AbortedSubmissionQueueDeleted,
-            0x09 => Self::AbortedSubmissionFailedFusedCommand,
-            0x0A => Self::AbortedSubmissionMissingFusedCommand,
-            0x0B => Self::InvalidNameSpaceOrFormat,
-            0x0C => Self::CommandSequenceError,
-            0x0D => Self::InvalidSGLDescriptor,
-            0x0E => Self::InvalidSGLDescriptor,
-            0x0F => Self::DataSGLLengthInvalid,
-            0x10 => Self::MetaDataSGLLengthInvalid,
-            0x11 => Self::SGLTypeDescriptorInvalid,
-            0x12 => Self::InvalidUseOfControlMemoryBuffer,
-            0x13 => Self::PRPOffsetInvalid,
-            0x14 => Self::AtomicWriteUnitExceeded,
-            0x15 => Self::OperationDenied,
-            0x16 => Self::SGLOffsetInvalid,
-            0x17 => Self::Reserved,
-            0x18 => Self::HostIdentifierInvalidFormat,
-            0x19 => Self::KATOExpired,
-            0x1A => Self::KATOInvalid,
-            0x1B => Self::CommandAbortPreemt,
-            0x1C => Self::SanitizeFailed,
-            0x1D => Self::SanitizeInProgress,
-            0x1E => Self::SGLDataBlockGranularityInvalid,
-            0x1F => Self::CommandInvalidInCMB,
-            0x80 => Self::LBAOutOfRange,
-            0x81 => Self::CapacityExceeded,
-            0x82 => Self::NamespaceNotReady,
-            0x83 => Self::ReservationConflict,
-            0x84 => Self::FormatInProgress,
-            _ => {
-                error!("unknown code {:x}", i);
-                Self::Reserved
-            }
-        }
-    }
-}
-
-/// Command specific status codes.
-/// Corresponds to `spdk_nvme_command_specific_status_code`.
-#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
-pub enum CommandSpecificStatusCode {
-    CompletionQueueInvalid,
-    InvalidQueueIdentifier,
-    InvalidQueueSize,
-    AbortCommandLimitExceeded,
-    AsyncEventRequestLimitExceeded,
-    InvalidFirmwareSlot,
-    InvalidFirmwareImage,
-    InvalidInterruptVector,
-    InvalidLogPage,
-    InvalidFormat,
-    FirmwareReqConventionalReset,
-    InvalidQueueDeletion,
-    FeatureIdNotSaveable,
-    FeatureNotChangeable,
-    FeatureNotNamespaceSpecific,
-    FirmwareReqNvmReset,
-    FirmwareReqReset,
-    FirmwareReqMaxTimeViolation,
-    FirmwareActivationProhibited,
-    OverlappingRange,
-    NamespaceInsufficientCapacity,
-    NamespaceIdUnavailable,
-    NamespaceAlreadyAttached,
-    NamespaceIsPrivate,
-    NamespaceNotAttached,
-    ThinprovisioningNotSupported,
-    ControllerListInvalid,
-    DeviceSelfTestInProgress,
-    BootPartitionWriteProhibited,
-    InvalidCtrlrId,
-    InvalidSecondaryCtrlrState,
-    InvalidNumCtrlrResources,
-    InvalidResourceId,
-    IocsNotSupported,
-    IocsNotEnabled,
-    IocsCombinationRejected,
-    InvalidIocs,
-    StreamResourceAllocationFailed,
-    ConflictingAttributes,
-    InvalidProtectionInfo,
-    AttemptedWriteToRoRange,
-    CmdSizeLimitSizeExceeded,
-    Unknown,
-}
-
-impl From<i32> for CommandSpecificStatusCode {
-    fn from(i: i32) -> Self {
-        match i {
-            0x00 => Self::CompletionQueueInvalid,
-            0x01 => Self::InvalidQueueIdentifier,
-            0x02 => Self::InvalidQueueSize,
-            0x03 => Self::AbortCommandLimitExceeded,
-            0x05 => Self::AsyncEventRequestLimitExceeded,
-            0x06 => Self::InvalidFirmwareSlot,
-            0x07 => Self::InvalidFirmwareImage,
-            0x08 => Self::InvalidInterruptVector,
-            0x09 => Self::InvalidLogPage,
-            0x0a => Self::InvalidFormat,
-            0x0b => Self::FirmwareReqConventionalReset,
-            0x0c => Self::InvalidQueueDeletion,
-            0x0d => Self::FeatureIdNotSaveable,
-            0x0e => Self::FeatureNotChangeable,
-            0x0f => Self::FeatureNotNamespaceSpecific,
-            0x10 => Self::FirmwareReqNvmReset,
-            0x11 => Self::FirmwareReqReset,
-            0x12 => Self::FirmwareReqMaxTimeViolation,
-            0x13 => Self::FirmwareActivationProhibited,
-            0x14 => Self::OverlappingRange,
-            0x15 => Self::NamespaceInsufficientCapacity,
-            0x16 => Self::NamespaceIdUnavailable,
-            0x18 => Self::NamespaceAlreadyAttached,
-            0x19 => Self::NamespaceIsPrivate,
-            0x1a => Self::NamespaceNotAttached,
-            0x1b => Self::ThinprovisioningNotSupported,
-            0x1c => Self::ControllerListInvalid,
-            0x1d => Self::DeviceSelfTestInProgress,
-            0x1e => Self::BootPartitionWriteProhibited,
-            0x1f => Self::InvalidCtrlrId,
-            0x20 => Self::InvalidSecondaryCtrlrState,
-            0x21 => Self::InvalidNumCtrlrResources,
-            0x22 => Self::InvalidResourceId,
-            0x29 => Self::IocsNotSupported,
-            0x2a => Self::IocsNotEnabled,
-            0x2b => Self::IocsCombinationRejected,
-            0x2c => Self::InvalidIocs,
-            0x7f => Self::StreamResourceAllocationFailed,
-            0x80 => Self::ConflictingAttributes,
-            0x81 => Self::InvalidProtectionInfo,
-            0x82 => Self::AttemptedWriteToRoRange,
-            0x83 => Self::CmdSizeLimitSizeExceeded,
-            _ => Self::Unknown,
-        }
-    }
-}
-
-/// Media error status codes
-/// Corresponds to `spdk_nvme_media_error_status_code`.
-#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
-pub enum MediaErrorStatusCode {
-    WriteFaults,
-    UnrecoveredReadError,
-    GuardCheckError,
-    ApplicationTagCheckError,
-    ReferenceTagCheckError,
-    CompareFailure,
-    AccessDenied,
-    DeallocatedOrUnwrittenBlock,
-    Unknown,
-}
-
-impl From<i32> for MediaErrorStatusCode {
-    fn from(i: i32) -> Self {
-        match i {
-            0x80 => Self::WriteFaults,
-            0x81 => Self::UnrecoveredReadError,
-            0x82 => Self::GuardCheckError,
-            0x83 => Self::ApplicationTagCheckError,
-            0x84 => Self::ReferenceTagCheckError,
-            0x85 => Self::CompareFailure,
-            0x86 => Self::AccessDenied,
-            0x87 => Self::DeallocatedOrUnwrittenBlock,
-            _ => Self::Unknown,
-        }
-    }
-}
-
-/// Path related status codes.
-/// Corresponds to `spdk_nvme_path_status_code`.
-#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
-pub enum PathStatusCode {
-    InternalPathError,
-    AsymmetricAccessPersistentLoss,
-    AsymmetricAccessInaccessible,
-    AsymmetricAccessTransition,
-    ControllerPathError,
-    HostPathError,
-    AbortedByHost,
-    Unknown,
-}
-
-impl From<i32> for PathStatusCode {
-    fn from(i: i32) -> Self {
-        match i {
-            0x00 => Self::InternalPathError,
-            0x01 => Self::AsymmetricAccessPersistentLoss,
-            0x02 => Self::AsymmetricAccessInaccessible,
-            0x03 => Self::AsymmetricAccessTransition,
-            0x60 => Self::ControllerPathError,
-            0x70 => Self::HostPathError,
-            0x71 => Self::AbortedByHost,
-            _ => Self::Unknown,
-        }
+        unsafe { Self::from((*cpl).status()) }
     }
 }
 
