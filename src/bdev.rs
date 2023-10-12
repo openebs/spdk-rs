@@ -184,7 +184,7 @@ where
 
     /// Returns the UUID of this bdev as a hyphenated string.
     pub fn uuid_as_string(&self) -> String {
-        self.uuid().to_hyphenated().to_string()
+        self.uuid().hyphenated().to_string()
     }
 
     /// TODO
