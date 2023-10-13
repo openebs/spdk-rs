@@ -157,15 +157,9 @@ impl Library {
                 self.lib_name.to_str().unwrap()
             );
         } else {
-            // TODO: linking to static SPDK requries `+whole-archive` option
-            // TODO: which is currently supported only by a nightly compiler
-            // println!("cargo:rustc-link-lib=static:+whole-archive,-bundle={}",
-            // self.name);
-
-            // println!("cargo:rustc-link-lib=static={}", self.name);
-
+            // Use 'whole-archive' flag on non-system libs.
             println!(
-                "cargo:rustc-link-lib=static={}",
+                "cargo:rustc-link-lib=static:+whole-archive,-bundle={}",
                 self.lib_name.to_str().unwrap()
             );
         }
