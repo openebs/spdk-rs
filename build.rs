@@ -42,6 +42,7 @@ fn get_out_dir() -> PathBuf {
 }
 
 /// Returns target dir.
+#[allow(dead_code)]
 fn get_target_dir() -> PathBuf {
     let mut p = get_out_dir();
     p.pop();
@@ -121,9 +122,11 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
     spdk_lib.mark_system("crypto");
     spdk_lib.mark_system("dl");
     spdk_lib.mark_system("m");
+    spdk_lib.mark_system("md");
     spdk_lib.mark_system("numa");
     spdk_lib.mark_system("pcap");
     spdk_lib.mark_system("rt");
+    spdk_lib.mark_system("ssl");
     spdk_lib.mark_system("uring");
     spdk_lib.mark_system("uuid");
 
@@ -162,6 +165,7 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
 
     spdk_lib.dump();
 
+    /*
     println!("Merging SPDK static libraries into a shared library...");
     let lib_name = OsStr::new("spdk-bundle");
     let lib_dir = get_target_dir();
@@ -170,12 +174,10 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
     println!("cargo:rustc-link-lib=dylib={}", lib_name.to_str().unwrap());
     println!("cargo:root={}", lib_dir.to_str().unwrap());
     println!("cargo:lib_path={}", lib_path.to_str().unwrap());
+     */
 
-    // TODO: linking to static SPDK requries `+whole-archive` option
-    // TODO: which is currently supported only by a nightly compiler:
-    // TODO: "-Z", "unstable-options",
-    //println!("Link against static SPDK...");
-    //spdk_lib.cargo();
+    println!("Link against static SPDK...");
+    spdk_lib.cargo();
 
     println!("cargo:rerun-if-env-changed=SPDK_PATH");
     println!("cargo:rerun-if-env-changed=PKG_CONFIG_PATH_FOR_TARGET");
