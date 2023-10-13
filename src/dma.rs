@@ -90,6 +90,22 @@ impl DmaBuf {
     pub fn to_io_vec(&self) -> IoVec {
         self.0
     }
+
+    /// Helper to dump content of a DmaBuf.
+    /// Derived Debug trait for DmaBuf only prints base address and length.
+    pub fn dump(&self) -> String {
+        let mut out = String::default();
+        let ptr = self.as_ptr();
+        for i in 0..self.0.len() {
+            let cur_byte = unsafe{*((ptr as *const u8).wrapping_add(i as usize))};
+            // print 16 bytes per line.
+            if i > 0 && i % 16 == 0 {
+                out.push_str("\n");
+            }
+            out.push_str(format!(":{:02x}", cur_byte).as_str());
+        }
+        out
+    }
 }
 
 impl AsIoVecs for [DmaBuf] {
