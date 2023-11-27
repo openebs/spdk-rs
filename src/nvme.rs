@@ -64,6 +64,7 @@ impl spdk_nvme_status {
 
 /// Status code types.
 #[derive(Copy, Clone, Eq, PartialOrd, PartialEq)]
+#[repr(C)]
 pub enum NvmeStatus {
     /// Generic command status codes.
     /// Corresponds to `spdk_nvme_generic_command_status_code` grouping.
