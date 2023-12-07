@@ -15,6 +15,7 @@
 #include <spdk/bdev_module.h>
 #include <spdk/conf.h>
 #include <spdk/cpuset.h>
+#include <spdk/crc32.h>
 #include <spdk/env.h>
 #include <spdk/env_dpdk.h>
 #include <spdk/event.h>
