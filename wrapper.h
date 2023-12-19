@@ -36,6 +36,7 @@
 #include <spdk_internal/thread.h>
 #include <spdk_internal/lvolstore.h>
 #include <thread/thread_internal.h>
+#include <bdev/bdev_internal.h>
 
 #include "helpers/logwrapper.h"
 #include "helpers/nvme_helper.h"
