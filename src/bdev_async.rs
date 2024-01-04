@@ -5,13 +5,19 @@ use futures::channel::{oneshot, oneshot::Canceled};
 
 use crate::{
     error::{SpdkError::BdevUnregisterFailed, SpdkResult},
-    ffihelper::{cb_arg, done_errno_cb, errno_result_from_i32, errno_error, ErrnoResult},
+    ffihelper::{
+        cb_arg,
+        done_errno_cb,
+        errno_result_from_i32,
+        errno_error,
+        ErrnoResult
+    },
     libspdk::{
+        bdev_reset_device_stat,
         spdk_bdev,
         spdk_bdev_get_device_stat,
         spdk_bdev_io_stat,
         spdk_bdev_unregister,
-        bdev_reset_device_stat,
         SPDK_BDEV_RESET_STAT_ALL,
     },
     Bdev,
@@ -100,8 +106,8 @@ where
     /// Returns Errno in case of an error.
     pub async fn stats_reset_async(&self) -> ErrnoResult<()> {
         let (s, r) = oneshot::channel::<i32>();
-        // This will iterate over I/O channels to reset IOStats and call async callback when
-        // done.
+        // This will iterate over I/O channels to reset IOStats and call async
+        // callback when done.
         unsafe {
             bdev_reset_device_stat(
                 self.as_inner_ptr(),
@@ -112,12 +118,11 @@ where
         }
         let errno = r.await.expect("Cancellation is not supported");
         if errno == 0 {
-            return Ok(())
+            return Ok(());
         }
         errno_error(errno)
     }
 }
-
 
 /// TODO
 /// TODO: used to synchronize the destroy call
@@ -148,7 +153,6 @@ unsafe extern "C" fn inner_unregister_callback(arg: *mut c_void, rc: i32) {
 /// * `errno`: Errno resulted in the function call.
 ///
 /// # Safety
-///
 unsafe extern "C" fn inner_stats_callback(
     _bdev: *mut spdk_bdev,
     _stat: *mut spdk_bdev_io_stat,
@@ -169,7 +173,6 @@ unsafe extern "C" fn inner_stats_callback(
 /// * `errno`: Errno resulted in the function call.
 ///
 /// # Safety
-///
 unsafe extern "C" fn inner_stats_reset_callback(
     _bdev: *mut spdk_bdev,
     arg: *mut c_void,
