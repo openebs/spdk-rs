@@ -8,8 +8,8 @@ use crate::{
     ffihelper::{
         cb_arg,
         done_errno_cb,
-        errno_result_from_i32,
         errno_error,
+        errno_result_from_i32,
         ErrnoResult,
     },
     libspdk::{
