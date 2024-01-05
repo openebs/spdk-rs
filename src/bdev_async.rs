@@ -10,7 +10,7 @@ use crate::{
         done_errno_cb,
         errno_result_from_i32,
         errno_error,
-        ErrnoResult
+        ErrnoResult,
     },
     libspdk::{
         bdev_reset_device_stat,
