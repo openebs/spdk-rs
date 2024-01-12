@@ -147,88 +147,6 @@ where
         }
     }
 
-    /// Gains exclusive access over a block range, and returns
-    /// a lock object that must be used to unlock the range.
-    pub async fn lock_lba_range(
-        &self,
-        range: LbaRange,
-    ) -> Result<LbaRangeLock<BdevData>, BdevDescError> {
-        let (s, r) = oneshot::channel::<i32>();
-
-        let ctx = Box::new(LockContext {
-            range,
-            ch: self.io_channel()?,
-            sender: Some(s),
-        });
-
-        unsafe {
-            let rc = bdev_lock_lba_range(
-                self.as_ptr(),
-                ctx.ch.legacy_as_ptr(),
-                ctx.range.offset,
-                ctx.range.len,
-                Some(LockContext::<BdevData>::lba_op_completion_cb),
-                ctx.as_ref() as *const _ as *mut c_void,
-            );
-            if rc != 0 {
-                return Err(BdevDescError::LbaLock {
-                    source: nix::errno::from_i32(rc),
-                    bdev_name: self.bdev().name().to_owned(),
-                });
-            }
-        }
-
-        // Wait for the lock to complete
-        let rc = r.await.unwrap();
-        if rc != 0 {
-            return Err(BdevDescError::LbaLock {
-                source: nix::errno::from_i32(rc),
-                bdev_name: self.bdev().name().to_owned(),
-            });
-        }
-
-        Ok(LbaRangeLock {
-            ctx,
-        })
-    }
-
-    /// Releases exclusive access over a block range.
-    pub async fn unlock_lba_range(
-        &self,
-        mut lock: LbaRangeLock<BdevData>,
-    ) -> Result<(), BdevDescError> {
-        let (s, r) = oneshot::channel::<i32>();
-        lock.ctx.sender = Some(s);
-
-        unsafe {
-            let rc = bdev_unlock_lba_range(
-                self.as_ptr(),
-                lock.ctx.ch.legacy_as_ptr(),
-                lock.ctx.range.offset,
-                lock.ctx.range.len,
-                Some(LockContext::<BdevData>::lba_op_completion_cb),
-                lock.ctx.as_ref() as *const _ as *mut c_void,
-            );
-            if rc != 0 {
-                return Err(BdevDescError::LbaUnlock {
-                    source: nix::errno::from_i32(rc),
-                    bdev_name: self.bdev().name().to_owned(),
-                });
-            }
-        }
-
-        // Wait for the unlock to complete
-        let rc = r.await.unwrap();
-        if rc != 0 {
-            return Err(BdevDescError::LbaUnlock {
-                source: nix::errno::from_i32(rc),
-                bdev_name: self.bdev().name().to_owned(),
-            });
-        }
-
-        Ok(())
-    }
-
     /// Returns a pointer to the underlying `spdk_bdev_desc` structure.
     pub(crate) fn as_ptr(&self) -> *mut spdk_bdev_desc {
         self.inner
@@ -374,4 +292,113 @@ impl<T: BdevOps> LockContext<T> {
 /// passing this lock object.
 pub struct LbaRangeLock<T: BdevOps> {
     ctx: Box<LockContext<T>>,
+}
+
+/// Allows gaining exclusive access over a block range.
+/// # Warning
+///     Due to the lack of async drop the range lock must be
+///     explicitly released.
+#[async_trait::async_trait(?Send)]
+pub trait LbaRangeLocker {
+    type RangeLock;
+
+    /// Gains exclusive access over a block range, and returns
+    /// a lock object that must be used to unlock the range.
+    async fn lock_lba_range(
+        &self,
+        range: LbaRange,
+    ) -> Result<Self::RangeLock, BdevDescError>;
+
+    /// Releases exclusive access over a block range.
+    async fn unlock_lba_range(
+        &self,
+        mut lock: Self::RangeLock,
+    ) -> Result<(), BdevDescError>;
+}
+
+#[async_trait::async_trait(?Send)]
+impl<BdevData: BdevOps> LbaRangeLocker for BdevDesc<BdevData> {
+    type RangeLock = LbaRangeLock<BdevData>;
+
+    /// Gains exclusive access over a block range, and returns
+    /// a lock object that must be used to unlock the range.
+    async fn lock_lba_range(
+        &self,
+        range: LbaRange,
+    ) -> Result<LbaRangeLock<BdevData>, BdevDescError> {
+        let (s, r) = oneshot::channel::<i32>();
+
+        let ctx = Box::new(LockContext {
+            range,
+            ch: self.io_channel()?,
+            sender: Some(s),
+        });
+
+        unsafe {
+            let rc = bdev_lock_lba_range(
+                self.as_ptr(),
+                ctx.ch.legacy_as_ptr(),
+                ctx.range.offset,
+                ctx.range.len,
+                Some(LockContext::<BdevData>::lba_op_completion_cb),
+                ctx.as_ref() as *const _ as *mut c_void,
+            );
+            if rc != 0 {
+                return Err(BdevDescError::LbaLock {
+                    source: nix::errno::from_i32(rc),
+                    bdev_name: self.bdev().name().to_owned(),
+                });
+            }
+        }
+
+        // Wait for the lock to complete
+        let rc = r.await.unwrap();
+        if rc != 0 {
+            return Err(BdevDescError::LbaLock {
+                source: nix::errno::from_i32(rc),
+                bdev_name: self.bdev().name().to_owned(),
+            });
+        }
+
+        Ok(LbaRangeLock {
+            ctx,
+        })
+    }
+
+    /// Releases exclusive access over a block range.
+    async fn unlock_lba_range(
+        &self,
+        mut lock: LbaRangeLock<BdevData>,
+    ) -> Result<(), BdevDescError> {
+        let (s, r) = oneshot::channel::<i32>();
+        lock.ctx.sender = Some(s);
+
+        unsafe {
+            let rc = bdev_unlock_lba_range(
+                self.as_ptr(),
+                lock.ctx.ch.legacy_as_ptr(),
+                lock.ctx.range.offset,
+                lock.ctx.range.len,
+                Some(LockContext::<BdevData>::lba_op_completion_cb),
+                lock.ctx.as_ref() as *const _ as *mut c_void,
+            );
+            if rc != 0 {
+                return Err(BdevDescError::LbaUnlock {
+                    source: nix::errno::from_i32(rc),
+                    bdev_name: self.bdev().name().to_owned(),
+                });
+            }
+        }
+
+        // Wait for the unlock to complete
+        let rc = r.await.unwrap();
+        if rc != 0 {
+            return Err(BdevDescError::LbaUnlock {
+                source: nix::errno::from_i32(rc),
+                bdev_name: self.bdev().name().to_owned(),
+            });
+        }
+
+        Ok(())
+    }
 }

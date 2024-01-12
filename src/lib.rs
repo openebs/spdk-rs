@@ -52,7 +52,14 @@ pub use crate::{
     bdev::Bdev,
     bdev_async::{BdevAsyncCallContext, BdevStats},
     bdev_builder::BdevBuilder,
-    bdev_desc::{BdevDesc, BdevDescError, BdevEvent, LbaRange, LbaRangeLock},
+    bdev_desc::{
+        BdevDesc,
+        BdevDescError,
+        BdevEvent,
+        LbaRange,
+        LbaRangeLock,
+        LbaRangeLocker,
+    },
     bdev_io::BdevIo,
     bdev_iter::{BdevGlobalIter, BdevModuleIter},
     bdev_module::{
