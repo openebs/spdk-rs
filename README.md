@@ -1,21 +1,21 @@
 # `spdk-rs` crate
 
-`spdk-rs` crate provides a higher-level bindings and wrappers around 
-SPDK library to enable building safer SPDK-based Rust applications. 
+`spdk-rs` crate provides a higher-level bindings and wrappers around
+SPDK library to enable building safer SPDK-based Rust applications.
 
 ## Getting SPDK library
 
 Read about SPDK here: [https://spdk.io/](https://spdk.io/).
 
 `spdk-rs` crate requires SPDK library to exist on the system. `spdk-rs` supports
-both linking to an SPDK library installed system-wide, or to SPDK libraries 
+both linking to an SPDK library installed system-wide, or to SPDK libraries
 and headers located in the SPDK build directory.
 
-`spdk-rs` uses `SPDK_PATH` environment variable to locate SPDK. If it is not 
+`spdk-rs` uses `SPDK_PATH` environment variable to locate SPDK. If it is not
 set, `spdk-rs` tries to find SPDK in `spdk-rs/spdk` directory.
 
 In order to get SPDK on the system, one can either use the Nix scripts
-provided by Mayastor, or build SPDK manually. Installing SPDK via system's 
+provided by the shell, or build SPDK manually. Installing SPDK via system's
 package managers like `apt` is not fully supported. It may, or may not work.
 
 Currently, `spdk-rs` can only link to SPDK built as static libraries.
@@ -23,15 +23,23 @@ Currently, `spdk-rs` can only link to SPDK built as static libraries.
 About linking SPDK applications:
 [https://spdk.io/doc/pkgconfig.html](https://spdk.io/doc/pkgconfig.html).
 
-## Using Nix scripts provided by Mayastor
+## Using Nix scripts provided by
 
-Enter the Nix shell provided by Mayastor:
+### Mayastor
+```
+cd $mayastor-repo
+nix-shell
+```
+
+### SPDK-RS
+
+You may instead use the Nix shell provided by this repo:
 ```
 nix-shell
 ```
 
 When you do it for the first time, it would require some time to Nix to
-build SPDK and all required dependencies, and configure the environment to use 
+build SPDK and all required dependencies, and configure the environment to use
 them.
 
 Now, build `spdk-rs` with Cargo:
@@ -40,18 +48,22 @@ cd spdk-rs
 cargo build
 ```
 
+
+However please note this may get out of sync as it's not the way we usually do it.
+We'll gladly accept PR's to sync up the nix build :)
+
 ## Building SPDK manually
 
-When making changes (or debugging) SPDK, it is often more convenient to have 
+When making changes (or debugging) SPDK, it is often more convenient to have
 a local checkout of SPDK rather than dealing with packages.
 
 In order to have all other dependencies (except SPDK) properly installed,
-start Mayastor Nix shell with SPDK package disabled:
+start the Nix shell with SPDK package disabled:
 ```
 nix-shell --arg nospdk true
 ```
-Alternatively, it is possible to install all the dependencies required 
-by SPDK manually. These steps are not covered in this manual. 
+Alternatively, it is possible to install all the dependencies required
+by SPDK manually. These steps are not covered in this manual.
 
 Now, clone and checkout a supported version of SPDK:
 ```
@@ -73,8 +85,8 @@ make
 
 #### Version >= 22.09
 * ISAL is now mandatory
-* When upgrading from previous versions, clean the SPDK directory 
-  before building (e.g. git clean). 
+* When upgrading from previous versions, clean the SPDK directory
+  before building (e.g. git clean).
 * An `AS` is now required, either `yasm` or `nasm`.
 * Zone support for uring must be disabled.
 * Crypto must be disabled.
@@ -85,20 +97,20 @@ AS=yasm ./configure --enable-debug --target-arch=nehalem --without-shared \
     --with-uring --without-uring-zns \
     --disable-unit-tests --disable-tests \
     --with-fio=$(realpath $(dirname $(which fio))/..)
-        
+
 make
 ```
 
 ---
 **NOTE**
 
-Currently, SPDK's `make install` script does not make an installation 
-sutiable to be used with `spdk-rs`. That is, trying to configure (via `DESTDIR`) 
-and _install_ SPDK in other directory using `Makefile` is not supported. 
+Currently, SPDK's `make install` script does not make an installation
+sutiable to be used with `spdk-rs`. That is, trying to configure (via `DESTDIR`)
+and _install_ SPDK in other directory using `Makefile` is not supported.
 ___
 
 
-After build, SPDK can be used to build `spdk-rs`. Either set `SPDK_PATH`, 
+After build, SPDK can be used to build `spdk-rs`. Either set `SPDK_PATH`,
 or create a symlink in `spdk-rs` directory to point to your SPDK.
 
 ```
@@ -110,7 +122,7 @@ cd ${workspace}/spdk-rs
 ln -s ${your_spdk_dir} ./spdk
 ```
 
-Alternatively, one can clone SPDK inside `spdk-rs` and use 
+Alternatively, one can clone SPDK inside `spdk-rs` and use
 the proivided `build_spdk.sh` script to build it.
 
 ### Cleaning SPDK build
