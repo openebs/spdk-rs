@@ -1,0 +1,34 @@
+name: Lint Commit Messages
+on:
+  pull_request:
+    types: ['opened', 'edited', 'reopened', 'synchronize']
+  push:
+    branches:
+      - staging
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Install CommitLint and Dependencies
+        run: npm install @commitlint/config-conventional @commitlint/cli
+      - name: Lint Commits
+        run: |
+          # Only run for PR's and simply succeed the bors staging branch
+          if [ ! ${{ github.ref }} = "refs/heads/staging" ]; then
+            first_commit=${{ github.event.pull_request.base.sha }}
+            last_commit=${{ github.event.pull_request.head.sha }}
+            # Ensure code-review commits don't get merged
+            sed "s/code-review-rule': \[0/code-review-rule': [2/g" -i commitlint.config.js
+            npx commitlint --from $first_commit --to $last_commit -V
+
+            git log --pretty=format:%s $first_commit..$last_commit > ./subjects
+            duplicates="$(cat ./subjects | sort | uniq -D)"
+            if [ "$duplicates" != "" ]; then
+              echo -e "Duplicate commits found:\n$duplicates" >&2
+              exit 1
+            fi
+          fi
