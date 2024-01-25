@@ -59,7 +59,7 @@ impl<ChannelData> IoChannel<ChannelData> {
     }
 
     /// TODO
-    fn thread_name(&self) -> &str {
+    pub fn thread_name(&self) -> &str {
         unsafe {
             std::ffi::CStr::from_ptr(spdk_thread_get_name(
                 self.inner.as_ref().thread,
