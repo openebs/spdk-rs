@@ -1,0 +1,33 @@
+repos:
+-   repo: https://github.com/nix-community/nixpkgs-fmt
+    rev: v1.2.0
+    hooks:
+    -   id: nixpkgs-fmt
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.0.1
+    hooks:
+    -   id: trailing-whitespace
+        exclude_types: [diff]
+-   repo: local
+    hooks:
+    -   id: rust-style
+        name: Rust style
+        description: Check Rust code style on files included in the commit.
+        entry: ./scripts/rust-style.sh
+        pass_filenames: false
+        types: [file, rust]
+        language: system
+    -   id: rust-lint
+        name: Rust lint
+        description: Run Rust linter on files included in the commit.
+        entry: ./scripts/rust-linter.sh
+        pass_filenames: false
+        types: [file, rust]
+        language: system
+    -   id: commit-lint
+        name: Commit Lint
+        description: Runs commitlint against the commit message.
+        language: system
+        entry: bash -c 'nix-shell --pure --run "cat $1 | grep -v '^#' | commitlint"'
+        args: [$1]
+        stages: [commit-msg]
