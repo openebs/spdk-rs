@@ -40,7 +40,10 @@ mkShell {
     udev
     utillinux
     yasm
+    commitlint
   ] ++ (if (nospdk) then [ spdk.buildInputs ] else [ spdk ]);
+
+  NODE_PATH = "${nodePackages."@commitlint/config-conventional"}/lib/node_modules";
 
   LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
   SPDK_PATH = if nospdk then null else "${spdk}";
