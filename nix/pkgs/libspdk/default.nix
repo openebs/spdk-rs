@@ -24,7 +24,6 @@
 , python3
 , stdenv
 , libtool
-, yasm
 , targetPlatform
 , buildPlatform
 , buildPackages
@@ -56,13 +55,13 @@ let
   # 7. Copy SHA256 from 'got' of the error message to 'sha256' field.
   # 8. 'nix-shell' build must now succeed.
   drvAttrs = rec {
-    version = "23.05-baffd90";
+    version = "24.01-2a918459c194";
 
     src = fetchFromGitHub {
       owner = "openebs";
       repo = "spdk";
-      rev = "baffd90809bdd0b113b76fc7c9d7663b69d26752";
-      sha256 = "sha256-tyxtXh7RpU6VtBlEjZ5MotnKQ4uZbbLD5sV+ndkuHhc=";
+      rev = "2a918459c19466f3dfda8b618ebe9ef35942ce73";
+      sha256 = "sha256-2AXNGzp5ub/9Npd8O73vkm/nhI0xQGicbmle96czRwQ=";
       fetchSubmodules = true;
     };
 
@@ -95,7 +94,6 @@ let
       numactl
       openssl
       (python3.withPackages (ps: with ps; [ pyelftools ]))
-      yasm
       zlib
     ];
 
@@ -119,11 +117,14 @@ let
       "--without-uring-zns"
       "--disable-unit-tests"
       "--disable-tests"
+      "--without-nvme-cuse"
+      "--without-fuse"
+      "--with-ublk"
     ];
 
     configurePhase = ''
       patchShebangs ./. > /dev/null
-      export AS=yasm
+      export AS=nasm
       ./configure ${builtins.concatStringsSep " " configureFlags}
     '';
     enableParallelBuilding = true;

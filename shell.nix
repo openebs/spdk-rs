@@ -39,7 +39,7 @@ mkShell {
     procps
     udev
     utillinux
-    yasm
+    nasm
     commitlint
   ] ++ (if (nospdk) then [ spdk.buildInputs ] else [ spdk ]);
 

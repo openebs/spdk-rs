@@ -38,6 +38,7 @@
 #include <spdk_internal/lvolstore.h>
 #include <thread/thread_internal.h>
 #include <bdev/bdev_internal.h>
+#include <ublk/ublk_internal.h>
 
 #include "helpers/logwrapper.h"
 #include "helpers/nvme_helper.h"

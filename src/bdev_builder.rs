@@ -197,6 +197,7 @@ where
                 max_unmap_segments: Default::default(),
                 max_write_zeroes: Default::default(),
                 max_copy: Default::default(),
+                max_rw_size: Default::default(),
                 uuid: self.uuid.unwrap_or_else(Uuid::generate).into_raw(),
                 md_len: Default::default(),
                 md_interleave: Default::default(),

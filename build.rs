@@ -158,7 +158,10 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
         "spdk_event_scsi",
         "spdk_event_sock",
         "spdk_event_vmd",
+        "spdk_ublk",
+        "spdk_event_ublk",
         "spdk_nvmf",
+        "spdk_util",
     ])?;
 
     spdk_lib.find_lib("spdk_syslibs")?;
@@ -178,6 +181,16 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
 
     println!("Link against static SPDK...");
     spdk_lib.cargo();
+
+    // There's no spdk ready .pc file for pkg-config to pick up the correct
+    // values..
+    let spdk_path = spdk_path.display();
+    println!("cargo:rustc-link-search={spdk_path}/isa-l/.libs/",);
+    println!("cargo:rustc-link-lib=static:+whole-archive,-bundle=isal");
+    println!("cargo:rerun-if-env-changed={spdk_path}/isa-l/.libs/");
+    println!("cargo:rustc-link-search={spdk_path}/isa-l-crypto/.libs/",);
+    println!("cargo:rustc-link-lib=static:+whole-archive,-bundle=isal_crypto");
+    println!("cargo:rerun-if-env-changed={spdk_path}/isa-l-crypto/.libs/");
 
     println!("cargo:rerun-if-env-changed=SPDK_PATH");
     println!("cargo:rerun-if-env-changed=PKG_CONFIG_PATH_FOR_TARGET");
@@ -256,7 +269,7 @@ fn main() {
             println!("Successfully compiled SPDK helpers");
         }
         Err(e) => {
-            eprintln!("\nFailed to complie SPDK helpers: {e}\n");
+            eprintln!("\nFailed to compile SPDK helpers: {e}\n");
             std::process::exit(1);
         }
     }
@@ -273,6 +286,7 @@ fn main() {
         .clang_args(clang_args)
         .header("wrapper.h")
         .formatter(bindgen::Formatter::Rustfmt)
+        .allowlist_function("ublk.*")
         .allowlist_function(".*.aio.*")
         .allowlist_function(".*.crypto_disk.*")
         .allowlist_function(".*.iscsi.*")

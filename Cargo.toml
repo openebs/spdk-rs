@@ -12,7 +12,7 @@ authors = [
 ]
 
 [build-dependencies]
-bindgen = "0.68.1"
+bindgen = "0.69.4"
 cc = "1.0.83"
 pkg-config = "0.3.27"
 
