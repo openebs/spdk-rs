@@ -1,15 +1,10 @@
 [package]
 name = "spdk-rs"
 description = "Rust bindings for SPDK library"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2018"
 build = "build.rs"
-license = "MIT"
-authors = [
-  "Jeffry Molanus <jeffry.molanus@gmail.com>",
-  "Jan Kryl <jan.kryl@mayadata.io>",
-  "Dmitry Savitskiy <dmitry.savitsky@mayadata.io>",
-]
+license = "Apache2"
 
 [build-dependencies]
 bindgen = "0.68.1"
