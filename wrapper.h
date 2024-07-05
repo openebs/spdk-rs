@@ -1,3 +1,10 @@
+
+#include <spdk/assert.h>
+
+#ifndef assert
+#define assert(expression) ((void)0)
+#endif
+
 #include <bdev/aio/bdev_aio.h>
 #include <bdev/crypto/vbdev_crypto.h>
 #include <bdev/error/vbdev_error.h>
@@ -30,6 +37,7 @@
 #include <spdk/rpc.h>
 #include <spdk/scsi.h>
 #include <spdk/thread.h>
+#include <spdk/trace.h>
 #include <spdk/uuid.h>
 #include <spdk/version.h>
 #include <spdk_internal/event.h>

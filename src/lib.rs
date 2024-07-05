@@ -20,6 +20,7 @@ extern crate tracing;
 extern crate serde;
 extern crate serde_json;
 
+pub mod bdevs;
 pub mod cpu_cores;
 pub mod ffihelper;
 pub mod libspdk;

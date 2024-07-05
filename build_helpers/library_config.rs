@@ -69,6 +69,7 @@ pub fn append_path_var<V: AsRef<OsStr>>(var_name: V, new_path: &Path) {
 }
 
 /// Library dependency.
+#[derive(Debug, Clone)]
 pub struct Library {
     /// Short library name (e.g. `z` for `-lz`).
     lib_name: OsString,
@@ -319,25 +320,61 @@ impl LibraryConfig {
     ) -> Result<(), Error> {
         let lib_name = OsString::from(&lib_name);
         let library = self.cfg.probe(lib_name.to_str().unwrap())?;
+
+        println!("Found pkg config dependencies for {lib_name:?}:");
+
         for name in &library.libs {
             let lib = Library::new(name, &lib_name, self);
+            println!("    link lib {n:?}", n = lib.pkg_name);
+            if self.is_lib_needed(&lib) {
+                self.add_lib(lib);
+            }
+        }
 
-            if !self.excluded.contains(&lib.lib_name)
-                && !self.libs.contains(&lib)
-            {
-                self.libs.insert(lib);
+        for file_path in &library.link_files {
+            println!("    link file {file_path:?}");
+
+            let mut dep_lib_name = OsString::from(":");
+            dep_lib_name.push(file_path.file_name().unwrap());
+
+            let lib = Library::new(&dep_lib_name, &lib_name, self);
+
+            if self.is_lib_needed(&lib) {
+                self.add_lib_path(file_path.parent().unwrap());
+                self.add_lib(lib);
             }
         }
 
         for path in &library.link_paths {
-            self.lib_paths.insert(path.clone());
+            println!("    lib path {path:?}");
+            self.add_lib_path(path);
         }
 
         for path in &library.include_paths {
+            println!("    inc path {path:?}");
             self.inc_paths.insert(path.clone());
         }
 
         Ok(())
+    }
+
+    /// Checks if the lib is needed.
+    pub fn is_lib_needed(&self, lib: &Library) -> bool {
+        !self.excluded.contains(&lib.lib_name) && !self.libs.contains(lib)
+    }
+
+    /// Adds a libs.
+    pub fn add_lib(&mut self, lib: Library) {
+        self.libs.insert(lib);
+    }
+
+    /// Adds a lib search path.
+    pub fn add_lib_path<T: AsRef<Path>>(&mut self, path: T) {
+        if !self.lib_paths.contains(path.as_ref()) {
+            let path = path.as_ref().to_owned();
+            println!("Added lib search path: {path:?}");
+            self.lib_paths.insert(path);
+        }
     }
 
     /// Finds all given libraries via pkg-config.
@@ -370,17 +407,17 @@ impl LibraryConfig {
     /// TODO
     #[allow(dead_code)]
     pub fn dump(&self) {
-        println!("**** Found libraries:");
+        println!("**** Will link against libraries (A: archive, S: system):");
         for lib in self.libs.iter() {
             println!("    {lib}");
         }
 
-        println!("**** Found library paths:");
+        println!("**** Will use library paths:");
         for p in self.lib_paths.iter() {
             println!("    {}", p.to_str().unwrap());
         }
 
-        println!("**** Found include paths:");
+        println!("**** Will use include paths:");
         for p in self.inc_paths.iter() {
             println!("    {}", p.to_str().unwrap());
         }

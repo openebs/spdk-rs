@@ -1,5 +1,4 @@
-///! TODO
-use std::{ffi::CString, os::raw::c_void, ptr::null_mut};
+use std::{ffi::CString, mem::zeroed, os::raw::c_void, ptr::null_mut};
 
 use crate::{
     bdev::Container,
@@ -174,7 +173,7 @@ where
             bdev: spdk_bdev {
                 ctxt: null_mut::<c_void>(),
                 name: self.name.expect("Bdev name must be set").into_raw(),
-                aliases: Default::default(),
+                aliases: unsafe { zeroed() },
                 product_name: self
                     .product_name
                     .expect("Bdev product name must be set")
@@ -197,6 +196,7 @@ where
                 max_unmap_segments: Default::default(),
                 max_write_zeroes: Default::default(),
                 max_copy: Default::default(),
+                max_rw_size: Default::default(),
                 uuid: self.uuid.unwrap_or_else(Uuid::generate).into_raw(),
                 md_len: Default::default(),
                 md_interleave: Default::default(),
@@ -214,7 +214,7 @@ where
                     SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE as u16,
                 module: self.module.as_ptr(),
                 fn_table: null_mut::<spdk_bdev_fn_table>(),
-                internal: Default::default(),
+                internal: unsafe { zeroed() },
             },
             fn_table: self.fn_table.expect("Bdev function table must be set"),
             data: self.data.expect("Bdev data must be set"),

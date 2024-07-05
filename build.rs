@@ -52,6 +52,16 @@ fn get_target_dir() -> PathBuf {
     p
 }
 
+/// Returns nightly rustfmt path, if it can be found. Returns None oetherwise.
+fn rust_fmt_nightly() -> Option<PathBuf> {
+    let mut cmd = std::process::Command::new("rustup");
+    cmd.args(["which", "rustfmt", "--toolchain=nightly"]);
+
+    build_helpers::run_command(&mut cmd, "rustup", None)
+        .ok()
+        .and_then(|r| r.1.first().map(PathBuf::from))
+}
+
 /// Returns absolute path for SPDK library.
 fn get_spdk_path() -> Result<PathBuf, Error> {
     let spdk_path = match env::var_os("SPDK_PATH") {
@@ -159,6 +169,7 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
         "spdk_event_sock",
         "spdk_event_vmd",
         "spdk_nvmf",
+        "spdk_util",
     ])?;
 
     spdk_lib.find_lib("spdk_syslibs")?;
@@ -253,7 +264,7 @@ fn main() {
     println!("\nCompiling SPDK helpers...");
     match compile_spdk_helpers(&inc_dirs) {
         Ok(_) => {
-            println!("Successfully compiled SPDK helpers");
+            println!("Successfully compiled SPDK helpers\n");
         }
         Err(e) => {
             eprintln!("\nFailed to complie SPDK helpers: {e}\n");
@@ -320,7 +331,6 @@ fn main() {
         .opaque_type("^spdk_nvmf_fabric_connect.*")
         .opaque_type("^spdk_nvmf_fabric_prop.*")
         .layout_tests(false)
-        .derive_default(true)
         .derive_debug(true)
         .derive_copy(true)
         .derive_partialeq(true)
@@ -331,6 +341,13 @@ fn main() {
         .parse_callbacks(Box::new(MacroCallback {
             macros,
         }));
+
+    // Use nightly rustfmt if it is possible.
+    let bindings = if let Some(rust_fmt) = rust_fmt_nightly() {
+        bindings.with_rustfmt(rust_fmt)
+    } else {
+        bindings
+    };
 
     #[cfg(target_arch = "x86_64")]
     let bindings = bindings.clang_arg("-march=nehalem");

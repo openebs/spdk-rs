@@ -84,7 +84,7 @@ where
 
     /// Get bdev IOStats or errno value in case of an error.
     pub async fn stats_async(&self) -> ErrnoResult<BdevStats> {
-        let mut stat: spdk_bdev_io_stat = Default::default();
+        let mut stat: spdk_bdev_io_stat = unsafe { std::mem::zeroed() };
         let (s, r) = oneshot::channel::<i32>();
 
         // This will iterate over I/O channels and call async callback when

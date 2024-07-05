@@ -1,5 +1,7 @@
 #include <stddef.h>
 #include <stdarg.h>
+
+#include "spdk_common.h"
 #include <spdk/log.h>
 
 typedef void spdk_rs_logger(int level, const char *file, const int line,

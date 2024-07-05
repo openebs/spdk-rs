@@ -32,7 +32,7 @@ impl Uuid {
     }
 
     /// Consumes the `Uuid` and returns its SPDK internal representation.
-    pub(crate) fn into_raw(self) -> spdk_uuid {
+    pub fn into_raw(self) -> spdk_uuid {
         self.inner
     }
 
