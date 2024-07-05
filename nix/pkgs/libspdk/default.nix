@@ -1,86 +1,124 @@
-{ binutils
-, cunit
+{ pkgs
+
+, build-type
+, with-fio
+, multi-outputs ? false
+
+, targetPlatform
+, buildPlatform
+
+, buildPackages
 , fetchFromGitHub
-, pkg-config
-, lcov
 , lib
+, stdenv
+
+, autoconf
+, automake
+, binutils
+, cmake
+, cunit
+, fio
+, gcc
+, help2man
+, jansson
+, lcov
 , libaio
 , libbpf
 , libbsd
 , libelf
 , libexecinfo
 , libpcap
+, libtool
 , liburing
 , libuuid
-, nasm
-, cmake
-, fio
-, ninja
-, jansson
+, llvmPackages
 , meson
+, nasm
 , ncurses
+, ninja
 , numactl
 , openssl
+, pkg-config
+, procps
 , python3
-, stdenv
-, libtool
-, yasm
-, targetPlatform
-, buildPlatform
-, buildPackages
-, llvmPackages
-, pkgs
-, gcc
+, udev
+, utillinux
 , zlib
-, autoconf
-, automake
-, with-fio
-, multi-outputs ? false
 }:
 let
-  fio-include = "${fio.dev}/include";
-  fio-output = if multi-outputs then "fio" else "out";
+  # Suffix for debug build name.
+  nameSuffix = if build-type == "debug" then "-dev" else "";
 
-  # Derivation attributes for production version of libspdk
+  # Select FIO plugin output: either to the libspdk pkg's out, or
+  # to a separate libspdk-fio pkg's out.
+  fioOutput = if multi-outputs then "fio" else "out";
+
+  # Additional build inputs for debug build.
+  extraBuildInputs = if build-type == "debug" then [cunit lcov] else [];
+
+  # Build script path.
+  buildScript = "../build_scripts/build_spdk.sh";
+
+  # Common arguments for the build script.
+  commonArgs = let
+    fioArg = if with-fio then
+      "--with-fio ${fio.dev}/include"
+    else
+      "--without-fio";
+
+    crossPrefix = if targetPlatform.config != buildPlatform.config then
+      "--crossPrefix=${targetPlatform.config}"
+    else
+      "";
+  in
+    "-v --no-log --with-spdk . -b ${build-type} -t ${targetPlatform.config} ${fioArg} ${crossPrefix}";
+
+  # Arguments for the install phase.
+  installArgs = if multi-outputs then "--with-fio-dst $fio" else "";
+
   #
-  # How to update to new libspdk commit:
-  # 1. Push your SPDK commit to openebs repo.
-  # 2. Copy git commit hash to 'rev' field, and copy first 9 digits of it
-  #    to 'version' field.
-  # 3. Leave old SHA256 intact.
-  # 4. Login to your machine and run 'sudo nix store gc' to get rid of stale
-  #    copies of SPDK package.
-  # 5. Enter your 'nix-shell'.
-  # 6. Wait until SPDK pkg build fails with
-  #    "hash mismatch in fixed-output derivation" error.
-  # 7. Copy SHA256 from 'got' of the error message to 'sha256' field.
-  # 8. 'nix-shell' build must now succeed.
+  # Derivation attributes
+  #
   drvAttrs = rec {
-    version = "23.05-baffd90";
+    pname = "libspdk${nameSuffix}";
+    version = "24.01-535a9e2";
 
-    src = fetchFromGitHub {
-      owner = "openebs";
-      repo = "spdk";
-      rev = "baffd90809bdd0b113b76fc7c9d7663b69d26752";
-      sha256 = "sha256-tyxtXh7RpU6VtBlEjZ5MotnKQ4uZbbLD5sV+ndkuHhc=";
-      fetchSubmodules = true;
-    };
+    src =  [
+      (fetchFromGitHub {
+        name = pname;
+        owner = "openebs";
+        repo = "spdk";
+        rev = "535a9e23cf9c0692e307a72f18856a528cdec9ce";
+        sha256 = "sha256-1FhOOr3gjmmk/p0IACI/A/uIIN2yiFxGSLAr377HiZQ=";
+        fetchSubmodules = true;
+      })
+      ../../../build_scripts
+    ];
+
+    sourceRoot = pname;
 
     nativeBuildInputs = [
+      cmake
+      gcc
+      help2man
+      llvmPackages.bintools
+      llvmPackages.clang
+      llvmPackages.libclang
       meson
       ninja
       pkg-config
+      procps
       python3
-      llvmPackages.clang
-      gcc
-      cmake
-    ];
+      udev
+      utillinux
+    ] ++ extraBuildInputs;
 
     buildInputs = [
       autoconf
       automake
       binutils
       jansson
+      fio
       libaio
       libbpf
       libbsd
@@ -95,124 +133,36 @@ let
       numactl
       openssl
       (python3.withPackages (ps: with ps; [ pyelftools ]))
-      yasm
       zlib
-    ];
+    ] ++ extraBuildInputs;
 
-    configureFlags = (if (targetPlatform.config == "x86_64-unknown-linux-gnu") then
-      [
-        "--target-arch=nehalem"
-        "--without-shared"
-        "--without-crypto"
-      ]
-    else if (targetPlatform.config == "aarch64-unknown-linux-gnu") then
-      [
-        "--target-arch=armv8-a+crypto"
-      ]
-    else
-      [ ]
-    ) ++
-    (if (targetPlatform.config != buildPlatform.config) then [ "--cross-prefix=${targetPlatform.config}" ] else [ ]) ++
-    (if with-fio then [ "--with-fio=${fio-include}" ] else [ ]) ++
-    [
-      "--with-uring"
-      "--without-uring-zns"
-      "--disable-unit-tests"
-      "--disable-tests"
-    ];
+    outputs = [ "out" ] ++ lib.optional (fioOutput != "out") fioOutput;
 
-    configurePhase = ''
-      patchShebangs ./. > /dev/null
-      export AS=yasm
-      ./configure ${builtins.concatStringsSep " " configureFlags}
-    '';
+    dontStrip = build-type == "debug";
     enableParallelBuilding = true;
-
     hardeningDisable = [ "all" ];
 
-    buildPhase = (if (targetPlatform.config == "aarch64-unknown-linux-gnu") then
-      [
-        "DPDKBUILD_FLAGS=-Dplatform=generic"
-      ]
-    else
-      [ ]
-    ) ++
-    [
-      "make -j`nproc`"
-    ];
+    #
+    # Phases.
+    #
+    prePatch = ''
+      pushd ..
+      chmod -R u+w build_scripts
+      patchShebangs . > /dev/null
+      popd
+    '';
+
+    configurePhase = ''
+      ${buildScript} configure ${commonArgs}
+    '';
+
+    buildPhase = ''
+      ${buildScript} make ${commonArgs}
+    '';
 
     installPhase = ''
-      echo "installing SPDK to $out"
-      mkdir -p $out/lib/pkgconfig
-      mkdir $out/bin
-
-      pushd include
-      find . -type f -name "*.h" -exec install -vD "{}" $out/include/{} \;
-      popd
-
-      pushd lib
-      find . -type f -name "*.h" -exec install -vD "{}" $out/include/spdk/lib/{} \;
-      popd
-
-      # copy private headers from bdev modules needed for creating of bdevs
-      pushd module
-      find . -type f -name "*.h" -exec install -vD "{}" $out/include/spdk/module/{} \;
-      popd
-
-      find . -executable -type f -name 'bdevperf' -exec install -vD "{}" $out/bin \;
-
-      # copy libraries
-      install -v build/lib/*.a                   $out/lib/
-      install -v build/lib/pkgconfig/*.pc        $out/lib/pkgconfig/
-      install -v dpdk/build/lib/*.a              $out/lib/
-      install -v dpdk/build/lib/pkgconfig/*.pc   $out/lib/pkgconfig/
-    '' + lib.optionalString targetPlatform.isx86_64 ''
-      install -v isa-l/.libs/*.a                 $out/lib/
-      install -v isa-l/*.pc                      $out/lib/pkgconfig/
-      install -v isa-l-crypto/.libs/*.a          $out/lib/
-      install -v isa-l-crypto/*.pc               $out/lib/pkgconfig/
-
-      # fix paths in pkg config files
-      build_dir=`pwd`
-      for i in `ls $out/lib/pkgconfig/*.pc`;
-      do
-        echo "fixing pkg config paths in '$i' ..."
-        sed -i "s,$build_dir/build/lib,$out/lib,g" $i
-        sed -i "s,$build_dir/dpdk/build,$out,g" $i
-        sed -i "s,$build_dir/intel-ipsec-mb/lib,$out/lib,g" $i
-      done
-    '' + lib.optionalString (with-fio && !multi-outputs) ''
-      mkdir $out/fio
-      cp build/fio/spdk_* $out/fio
-    '' + lib.optionalString (with-fio && multi-outputs) ''
-      mkdir $fio
-      cp build/fio/spdk_* $fio
+      ${buildScript} install $out ${commonArgs} ${installArgs}
     '';
-
-    outputs = [ "out" ] ++ lib.optional (fio-output != "out") fio-output;
   };
 in
-{
-  release = llvmPackages.stdenv.mkDerivation (drvAttrs // {
-    pname = "libspdk";
-    dontStrip = false;
-  });
-  debug = llvmPackages.stdenv.mkDerivation (drvAttrs // {
-    pname = "libspdk-dev";
-    dontStrip = true;
-    nativeBuildInputs = drvAttrs.nativeBuildInputs ++ [ cunit lcov ];
-    buildInputs = drvAttrs.buildInputs ++ [ cunit lcov ];
-    configurePhase = ''
-      patchShebangs ./. > /dev/null
-      export AS=yasm
-      ./configure ${builtins.concatStringsSep " " (drvAttrs.configureFlags ++
-      [
-        "--enable-debug"
-      ])}
-    '';
-    installPhase = drvAttrs.installPhase + ''
-      echo "Copying test files"
-      cp -ar test $out/test
-    '';
-  });
-}
+    llvmPackages.stdenv.mkDerivation drvAttrs

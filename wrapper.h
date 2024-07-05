@@ -1,9 +1,5 @@
 
-#include <spdk/assert.h>
-
-#ifndef assert
-#define assert(expression) ((void)0)
-#endif
+#include "./helpers/spdk_common.h"
 
 #include <bdev/aio/bdev_aio.h>
 #include <bdev/crypto/vbdev_crypto.h>

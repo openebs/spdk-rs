@@ -5,10 +5,9 @@ let
   pkgs = import sources.nixpkgs {
     overlays = [
       (_: _: { inherit sources; })
-      (import ./nix/overlay.nix {
-        inherit })
-          ];
-        inherit crossSystem;
-      };
-      in
-      pkgs
+      (import ./nix/overlay.nix)
+    ];
+    inherit crossSystem;
+  };
+in
+pkgs

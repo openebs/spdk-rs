@@ -113,9 +113,6 @@ where
     }
 
     /// Returns claim module raw pointer.
-    #[deprecated(
-        note = "Since SPDK 23.05, it is possible to have multiple claim"
-    )]
     fn first_claim_module_ptr(&self) -> *mut spdk_bdev_module {
         unsafe {
             let b = self.as_inner_ref().internal;
@@ -136,9 +133,6 @@ where
 
     /// Returns by a Bdev module who has claimed this Bdev.
     /// TODO: must returns a list of claims or an iterator of claims.
-    #[deprecated(
-        note = "Since SPDK 23.05, it is possible to have multiple claim"
-    )]
     pub fn first_claim_module(&self) -> Option<BdevModule> {
         let ptr = self.first_claim_module_ptr();
         if ptr.is_null() {
@@ -150,9 +144,6 @@ where
 
     /// Returns by a name of Bdev module who has claimed this Bdev.
     /// TODO: must returns a list of claims or an iterator of claims.
-    #[deprecated(
-        note = "Since SPDK 23.05, it is possible to have multiple claim"
-    )]
     pub fn first_claim_module_name(&self) -> Option<String> {
         self.first_claim_module().map(|m| m.name().to_string())
     }
