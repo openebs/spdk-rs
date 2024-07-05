@@ -114,10 +114,21 @@ pub fn copy_cstr_to_buf_with_null(
 /// Result having Errno error.
 pub type ErrnoResult<T, E = Errno> = Result<T, E>;
 
-/// Construct callback argument for spdk async function.
+/// Constructs a callback argument for spdk async function.
 /// The argument is a oneshot sender channel for result of the operation.
+/// The pointer returned by this function is a raw pointer to
+/// a heap-allocated object, and it must be consumed by `done_cb`,
+/// `done_errno_cb`, or dropped explicitly by `drop_cb_arg`.
 pub fn cb_arg<T>(sender: oneshot::Sender<T>) -> *mut c_void {
     Box::into_raw(Box::new(sender)) as *const _ as *mut c_void
+}
+
+/// Drops a callback argument contructed by `cb_arg`.
+/// This is needed when the callback is known to be not called.
+pub fn drop_cb_arg<T>(sender_ptr: *mut c_void) {
+    let sender =
+        unsafe { Box::from_raw(sender_ptr as *mut oneshot::Sender<T>) };
+    drop(sender);
 }
 
 /// A generic callback for spdk async functions expecting to be called with

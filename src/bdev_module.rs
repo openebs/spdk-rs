@@ -1,11 +1,9 @@
-///! TODO
-use std::{ffi::CString, marker::PhantomData, ptr::NonNull};
+use std::{ffi::CString, marker::PhantomData, mem::zeroed, ptr::NonNull};
 
 use crate::{
     ffihelper::{AsStr, IntoCString},
     libspdk::{
         spdk_bdev_module,
-        spdk_bdev_module___bdev_module_internal_fields,
         spdk_bdev_module_claim_bdev,
         spdk_bdev_module_list_add,
         spdk_bdev_module_list_find,
@@ -337,7 +335,7 @@ impl<M: ?Sized> BdevModuleBuilder<M> {
             async_init: false,
             async_fini: false,
             async_fini_start: false,
-            internal: spdk_bdev_module___bdev_module_internal_fields::default(),
+            internal: unsafe { zeroed() },
         });
 
         unsafe { spdk_bdev_module_list_add(Box::into_raw(inner)) }

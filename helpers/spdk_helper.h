@@ -2,6 +2,7 @@
 #ifndef MAYASTOR_SPDK_HELPER_H
 #define MAYASTOR_SPDK_HELPER_H
 
+#include "spdk_common.h"
 #include <spdk/thread.h>
 
 /**

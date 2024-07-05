@@ -52,18 +52,41 @@ fn get_target_dir() -> PathBuf {
     p
 }
 
+/// Returns nightly rustfmt path, if it can be found. Returns None otherwise.
+fn rust_fmt_nightly() -> Option<PathBuf> {
+    match env::var_os("RUST_NIGHTLY_PATH") {
+        Some(s) => {
+            let mut p = PathBuf::from(s);
+            p.push("bin");
+            p.push("rustfmt");
+            Some(p)
+        }
+        None => {
+            let mut cmd = std::process::Command::new("rustup");
+            cmd.args(["which", "rustfmt", "--toolchain=nightly"]);
+
+            build_helpers::run_command(&mut cmd, "rustup", None)
+                .ok()
+                .and_then(|r| r.1.first().map(PathBuf::from))
+        }
+    }
+}
+
 /// Returns absolute path for SPDK library.
 fn get_spdk_path() -> Result<PathBuf, Error> {
-    let spdk_path = match env::var_os("SPDK_PATH") {
+    let spdk_path = match env::var_os("SPDK_ROOT_DIR") {
         Some(s) => {
-            println!("SPDK_PATH variable is set to {}", s.to_str().unwrap());
+            println!(
+                "SPDK_ROOT_DIR variable is set to {}",
+                s.to_str().unwrap()
+            );
             PathBuf::from(s)
         }
         None => {
             let mut spdk_path = get_root_dir();
             spdk_path.push("spdk");
             println!(
-                "SPDK_PATH variable not set, trying {}",
+                "SPDK_ROOT_DIR variable not set, trying {}",
                 spdk_path.to_str().unwrap()
             );
             spdk_path
@@ -159,6 +182,7 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
         "spdk_event_sock",
         "spdk_event_vmd",
         "spdk_nvmf",
+        "spdk_util",
     ])?;
 
     spdk_lib.find_lib("spdk_syslibs")?;
@@ -179,7 +203,7 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
     println!("Link against static SPDK...");
     spdk_lib.cargo();
 
-    println!("cargo:rerun-if-env-changed=SPDK_PATH");
+    println!("cargo:rerun-if-env-changed=SPDK_ROOT_DIR");
     println!("cargo:rerun-if-env-changed=PKG_CONFIG_PATH_FOR_TARGET");
 
     Ok(spdk_lib)
@@ -253,7 +277,7 @@ fn main() {
     println!("\nCompiling SPDK helpers...");
     match compile_spdk_helpers(&inc_dirs) {
         Ok(_) => {
-            println!("Successfully compiled SPDK helpers");
+            println!("Successfully compiled SPDK helpers\n");
         }
         Err(e) => {
             eprintln!("\nFailed to complie SPDK helpers: {e}\n");
@@ -320,7 +344,6 @@ fn main() {
         .opaque_type("^spdk_nvmf_fabric_connect.*")
         .opaque_type("^spdk_nvmf_fabric_prop.*")
         .layout_tests(false)
-        .derive_default(true)
         .derive_debug(true)
         .derive_copy(true)
         .derive_partialeq(true)
@@ -331,6 +354,13 @@ fn main() {
         .parse_callbacks(Box::new(MacroCallback {
             macros,
         }));
+
+    // Use nightly rustfmt if it is possible.
+    let bindings = if let Some(rust_fmt) = rust_fmt_nightly() {
+        bindings.with_rustfmt(rust_fmt)
+    } else {
+        bindings
+    };
 
     #[cfg(target_arch = "x86_64")]
     let bindings = bindings.clang_arg("-march=nehalem");
@@ -346,4 +376,16 @@ fn main() {
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-changed=build_scripts/build_spdk.sh");
+
+    // When `SPDK_RS_BUILD_USE_LOGS` env var is set `yes`, rebuild if the
+    // contents of `build_logs` directory has been changed.
+    //
+    // This allows `spdk-rs` to recompile every time a locally-built SPDK is
+    // configured or compiled with `build_scripts/build_spdk.sh`.
+    println!("cargo:rerun-if-env-changed=SPDK_RS_BUILD_USE_LOGS");
+    if env::var("SPDK_RS_BUILD_USE_LOGS").unwrap_or_default() == "yes" {
+        fs::create_dir("build_logs").ok();
+        println!("cargo:rerun-if-changed=build_logs");
+    }
 }

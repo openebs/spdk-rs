@@ -19,3 +19,54 @@ pub use spdk_nvme_generic_command_status_code::*;
 pub use spdk_nvme_media_error_status_code::*;
 pub use spdk_nvme_path_status_code::*;
 pub use spdk_nvme_status_code_type::*;
+
+/// Initializes a size field of a struct with struct's size_of.
+/// Other fields must be initialized explicitly.
+///
+/// # Examples
+///
+/// ```
+/// use spdk_rs::struct_size_init;
+/// use spdk_rs::libspdk::spdk_nvmf_ns_opts;
+/// struct_size_init!(
+///     spdk_nvmf_ns_opts {
+///         nsid: 0,
+///         nguid: null_mut(),
+///         eui64: zeroed(),
+///         uuid: Default::default(),
+///         reserved44: zeroed(),
+///         anagrpid: 0,
+///         reserved60: zeroed(),
+///     },
+///     opts_size
+/// );
+/// ```
+#[macro_export]
+macro_rules! struct_size_init {
+    ($s:ident {$($ii:ident : $xx:expr),+ $(,)?}, $f:ident) => (
+        $s {
+            $f: ::std::mem::size_of::<$s>() as u64,
+            $($ii : $xx),+
+        }
+    );
+}
+
+// Defaults for frequently used types.
+//
+// Note: blanket usage of `Default` on SPDK structs is discouraged as newly
+// added fields may be initialized with undesirable values.
+
+macro_rules! impl_zeroed_default {
+    ($s:ident) => {
+        impl Default for $s {
+            fn default() -> Self {
+                unsafe { ::std::mem::zeroed() }
+            }
+        }
+    };
+}
+
+impl_zeroed_default!(spdk_cpuset);
+impl_zeroed_default!(spdk_nvme_cmd);
+impl_zeroed_default!(spdk_nvme_transport_id);
+impl_zeroed_default!(spdk_uuid);
