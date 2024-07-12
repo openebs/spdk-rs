@@ -152,6 +152,8 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
     spdk_lib.mark_system("ssl");
     spdk_lib.mark_system("uring");
     spdk_lib.mark_system("uuid");
+    spdk_lib.mark_system("rdmacm");
+    spdk_lib.mark_system("ibverbs");
 
     spdk_lib.set_static_search(true);
 

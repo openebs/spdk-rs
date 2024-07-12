@@ -44,6 +44,7 @@
 , udev
 , utillinux
 , zlib
+, rdma-core
 }:
 let
   # Suffix for debug build name.
@@ -132,6 +133,7 @@ let
       ncurses
       numactl
       openssl
+      rdma-core
       (python3.withPackages (ps: with ps; [ pyelftools ]))
       zlib
     ] ++ extraBuildInputs;
