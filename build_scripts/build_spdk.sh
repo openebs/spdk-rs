@@ -49,6 +49,7 @@ CONFIGURE_ARGS=(
     "--without-fuse"
     "--disable-unit-tests"
     "--disable-tests"
+    "--with-rdma"
 )
 
 MAKE_DEFAULT_ARGS="-j"                              # Default args for invoking GNU make
