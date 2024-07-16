@@ -7,7 +7,6 @@ let
       (_: _: { inherit sources; })
       (import ./nix/overlay.nix)
     ];
-    inherit crossSystem;
   };
 in
 pkgs
