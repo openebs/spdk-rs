@@ -18,7 +18,7 @@ then
     fi
 fi
 
-msg_debug "Using HEAD git revision: $REV"
+msg_info "Using HEAD git revision: $REV"
 
 CMD="nix-prefetch fetchFromGitHub --owner $OWNER --repo $REPO --fetchSubmodules --rev $REV"
 
@@ -39,6 +39,13 @@ then
     exit 1
 fi
 
-echo "$SHA"
+echo
+echo "SPDK version         : $SPDK_VERSION-${REV:0:7}"
+echo "SPDK revision        : $REV"
+echo "SPDK revision SHA256 : $SHA"
+echo '''
+Tip: copy these to default.nix of SPDK Nix package: to "drvAttrs.version",
+and to "rev" and "sha256" arguments of "fetchFromGitHub" call respectively.
+'''
 
 silent_popd
