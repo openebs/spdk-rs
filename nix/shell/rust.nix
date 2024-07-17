@@ -14,6 +14,7 @@ let
     pkg-config
     procps
     utillinux
+    which
   ];
 
   shellEnv = {
@@ -75,15 +76,15 @@ let
 
       shellEnv = shellEnv // {
         # ASAN-related Cargo settings.
-        ASAN_ENABLE             = "1";
-        ASAN_OPTIONS            = "detect_leaks=0";
-        ASAN_BUILD_ENV          = "shell";
-        RUSTFLAGS               = "-Zsanitizer=address";
-        CARGO_BUILD_RUSTFLAGS   = "-Zbuild-std";
-        CARGO_BUILD_TARGET      = "x86_64-unknown-linux-gnu";
+        ASAN_ENABLE = "1";
+        ASAN_OPTIONS = "detect_leaks=0";
+        ASAN_BUILD_ENV = "shell";
+        RUSTFLAGS = "-Zsanitizer=address";
+        CARGO_BUILD_RUSTFLAGS = "-Zbuild-std";
+        CARGO_BUILD_TARGET = "x86_64-unknown-linux-gnu";
         CARGO_PROFILE_DEV_PANIC = "unwind";
-        RUST_BACKTRACE          = "full";
-        RUST_TARGET_DEBUG       = "target/x86_64-unknown-linux-gnu/debug";
+        RUST_BACKTRACE = "full";
+        RUST_TARGET_DEBUG = "target/x86_64-unknown-linux-gnu/debug";
       };
 
       shellHook = ''
@@ -127,4 +128,4 @@ let
     };
   };
 in
-  configurations.${rust}
+configurations.${rust}

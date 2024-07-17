@@ -71,18 +71,18 @@ let
 
       shellEnv = {
         CFLAGS = "-msse4";
-        SPDK_RS_BUILD_USE_LOGS = "yes";  # Tells spdk-rs build.rs script to rerun when build_logs dir is updated.
+        SPDK_RS_BUILD_USE_LOGS = "yes"; # Tells spdk-rs build.rs script to rerun when build_logs dir is updated.
       };
 
       shellHook = fioDetectHook
-       + (if spdk-path == null then "" else ''
+        + (if spdk-path == null then "" else ''
         export SPDK_ROOT_DIR=$(realpath ${spdk-path} 2>/dev/null);
         if [[ -n "$SPDK_ROOT_DIR" ]];
         then
           export FIO_SPDK="$SPDK_ROOT_DIR/build/fio/spdk_nvme";
         fi
       '')
-      + ''
+        + ''
         echo
         echo "You have requested Nix shell without SPDK."
         echo "Use 'build_scripts/build_spdk.sh' to configure and compile SPDK."
@@ -96,4 +96,4 @@ let
     };
   };
 in
-  configurations.${spdkCfg}
+configurations.${spdkCfg}

@@ -1,0 +1,32 @@
+name: Code Linter
+on:
+  merge_group:
+  pull_request:
+    types: ['opened', 'edited', 'reopened', 'synchronize']
+jobs:
+  rust-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - uses: cachix/install-nix-action@v26
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+      - name: nix-shell
+        run: nix-shell --pure --run exit
+      - name: cargo-clippy
+        run: nix-shell --pure --run ./scripts/rust-linter.sh
+      - name: cargo-fmt
+        run: nix-shell --pure --run "FMT_OPTS=--check ./scripts/rust-style.sh"
+  nix-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - uses: cachix/install-nix-action@v26
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+      - name: nix-shell
+        run: nix-shell --pure -p nixpkgs-fmt --run "nixpkgs-fmt --check ."

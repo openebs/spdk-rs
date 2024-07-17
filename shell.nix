@@ -24,6 +24,6 @@ let
     };
   });
 in
-  pkgs.mkShell shellAttrs // {
-      name = "spdk-rs-dev-shell";
-  }
+pkgs.mkShell shellAttrs // {
+  name = "spdk-rs-dev-shell";
+}
