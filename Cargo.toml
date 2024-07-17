@@ -22,7 +22,10 @@ tracing = "0.1.37"
 
 [dependencies.serde]
 features = ["derive"]
-version = "1.0.188"
+# v1.0.198 introduces a breaking change by making use of unstable feature saturating_int_impl!
+# Let's ensure we don't use v.1.0.198 or newer until we upgrade the compiler!
+# https://github.com/serde-rs/serde/issues/2734
+version = ">=1.0.188,<1.0.198"
 
 [dependencies.uuid]
 features = ["v4"]

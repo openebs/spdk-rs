@@ -8,16 +8,15 @@
 let
   rustCfg = import ./rust.nix { inherit pkgs; inherit sources; inherit rust; };
   spdkCfg = import ./spdk.nix { inherit pkgs; inherit spdk; inherit spdk-path; };
-  ciCfg  = import ./ci.nix { inherit pkgs; };
-in rec {
+  ciCfg = import ./ci.nix { inherit pkgs; };
+in
+rec {
   # fortify does not work with -O0 which is used by spdk when --enable-debug
   hardeningDisable = [ "fortify" ];
 
   buildInputs = with pkgs; [
     commitlint
-    libnvme
     libunwind
-    nvme-cli
   ]
   ++ rustCfg.buildInputs
   ++ spdkCfg.buildInputs
@@ -37,6 +36,4 @@ in rec {
   + cfg.shellHook
   + cfg.shellInfoHook;
 }
-// rustCfg.shellEnv
-// spdkCfg.shellEnv
-// cfg.shellEnv
+// rustCfg.shellEnv // spdkCfg.shellEnv // cfg.shellEnv

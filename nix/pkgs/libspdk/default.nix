@@ -55,23 +55,26 @@ let
   fioOutput = if multi-outputs then "fio" else "out";
 
   # Additional build inputs for debug build.
-  extraBuildInputs = if build-type == "debug" then [cunit lcov] else [];
+  extraBuildInputs = if build-type == "debug" then [ cunit lcov ] else [ ];
 
   # Build script path.
   buildScript = "../build_scripts/build_spdk.sh";
 
   # Common arguments for the build script.
-  commonArgs = let
-    fioArg = if with-fio then
-      "--with-fio ${fio.dev}/include"
-    else
-      "--without-fio";
+  commonArgs =
+    let
+      fioArg =
+        if with-fio then
+          "--with-fio ${fio.dev}/include"
+        else
+          "--without-fio";
 
-    crossPrefix = if targetPlatform.config != buildPlatform.config then
-      "--crossPrefix=${targetPlatform.config}"
-    else
-      "";
-  in
+      crossPrefix =
+        if targetPlatform.config != buildPlatform.config then
+          "--crossPrefix=${targetPlatform.config}"
+        else
+          "";
+    in
     "-v --no-log --with-spdk . -b ${build-type} -t ${targetPlatform.config} ${fioArg} ${crossPrefix}";
 
   # Arguments for the install phase.
@@ -84,7 +87,7 @@ let
     pname = "libspdk${nameSuffix}";
     version = "24.01-535a9e2";
 
-    src =  [
+    src = [
       (fetchFromGitHub {
         name = pname;
         owner = "openebs";
@@ -167,4 +170,4 @@ let
     '';
   };
 in
-    llvmPackages.stdenv.mkDerivation drvAttrs
+llvmPackages.stdenv.mkDerivation drvAttrs
