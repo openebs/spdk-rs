@@ -80,7 +80,7 @@ Commands:
     clean                       Clean SPDK with git clean
     install <PATH>              Install SPDK at the given path
     fmt                         Runs check format script
-    hash                        Determine SHA256 for the lastest SPDK commit
+    sha256                      Determine SHA256 for the latest SPDK commit
     help                        Print help
 
 Build types:
