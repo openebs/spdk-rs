@@ -66,6 +66,9 @@ if [ -n "$RUST_NIGHTLY_PATH" ]; then
   # cargo searches PATH for its subcommands (e.g. cargo fmt), so export
   # PATH with RUST_NIGHTLY_PATH put before all other PATHs.
   PATH=$RUST_NIGHTLY_PATH/bin:$PATH
+  # cargo attempts to search in ~/.cargo/bin first, so we need to put
+  # that at the end of the path as a quirky WA... sad :(
+  PATH=$PATH:~/.cargo/bin
 fi
 
 # Try cargo from PATH.
