@@ -6,26 +6,27 @@ use snafu::Snafu;
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub), context(suffix(false)), module(spdk_error))]
 pub enum SpdkError {
-    #[snafu(display("Bdev module '{}' does not exist", name))]
+    #[snafu(display("Bdev module '{name}' does not exist"))]
     BdevModuleNotFound { name: String },
 
-    #[snafu(display("Bdev '{}' is already claimed by another module", name))]
+    #[snafu(display("Bdev '{name}' is already claimed by another module"))]
     BdevAlreadyClaimed { name: String },
 
     #[snafu(display(
-        "Bdev '{}' is not claimed by this module '{}'",
-        name,
-        mod_name
+        "Bdev '{name}' is not claimed by this module '{mod_name}'",
     ))]
     BdevNotClaimed { name: String, mod_name: String },
 
-    #[snafu(display("Failed to unregister Bdev '{}'", name))]
-    BdevUnregisterFailed { name: String },
+    #[snafu(display("Failed to unregister Bdev '{name}': {source}"))]
+    BdevUnregisterFailed {
+        source: nix::errno::Errno,
+        name: String,
+    },
 
-    #[snafu(display("Serde JSON serialization failed: {}", source))]
+    #[snafu(display("Serde JSON serialization failed: {source}"))]
     SerdeFailed { source: serde_json::Error },
 
-    #[snafu(display("SPDK JSON write failed: error code {}", code))]
+    #[snafu(display("SPDK JSON write failed: error code {code}"))]
     JsonWriteFailed { code: i32 },
 }
 
