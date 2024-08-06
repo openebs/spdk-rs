@@ -7,3 +7,4 @@
 .pregenerated
 /Cargo.lock
 /build_logs
+/rust-toolchain.toml

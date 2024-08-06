@@ -63,7 +63,7 @@ where
     /// TODO
     pub async fn unregister_bdev_async(&mut self) -> SpdkResult<()> {
         let name = self.name().to_string();
-        let (s, r) = oneshot::channel::<bool>();
+        let (s, r) = oneshot::channel::<i32>();
 
         unsafe {
             spdk_bdev_unregister(
@@ -73,12 +73,16 @@ where
             );
         }
 
-        if r.await.unwrap() {
-            Ok(())
-        } else {
-            Err(BdevUnregisterFailed {
+        match r.await {
+            Ok(rc) if rc == 0 => Ok(()),
+            Ok(rc) => Err(BdevUnregisterFailed {
+                source: nix::errno::Errno::from_i32(rc.abs()),
                 name,
-            })
+            }),
+            Err(error) => Err(BdevUnregisterFailed {
+                source: nix::errno::Errno::ECANCELED,
+                name,
+            }),
         }
     }
 
@@ -136,11 +140,8 @@ where
 ///
 /// TODO
 unsafe extern "C" fn inner_unregister_callback(arg: *mut c_void, rc: i32) {
-    let s = Box::from_raw(arg as *mut oneshot::Sender<bool>);
-    let _ = match rc {
-        0 => s.send(true),
-        _ => s.send(false),
-    };
+    let s = Box::from_raw(arg as *mut oneshot::Sender<i32>);
+    let _ = s.send(rc);
 }
 
 ///
