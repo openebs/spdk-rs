@@ -210,6 +210,7 @@ where
                 max_active_zones: Default::default(),
                 optimal_open_zones: Default::default(),
                 media_events: Default::default(),
+                ctratt: unsafe { zeroed() },
                 reset_io_drain_timeout:
                     SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE as u16,
                 module: self.module.as_ptr(),

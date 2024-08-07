@@ -11,7 +11,7 @@ LOG_DIR=$(realpath "$SCRIPT_DIR/../build_logs")
 export LOG_DIR
 
 export SPDK_ROOT_DIR=${SPDK_ROOT_DIR:-""}           # Root of SPDK sources.
-export SPDK_VERSION="24.01"                         # SPDK version (currently, informative only).
+export SPDK_VERSION="24.05"                         # SPDK version (currently, informative only).
 
 export BUILD_TYPE="debug"
 export TARGET_PLATFORM="x86_64-unknown-linux-gnu"
