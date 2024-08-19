@@ -36,12 +36,14 @@
 #include <spdk/trace.h>
 #include <spdk/uuid.h>
 #include <spdk/version.h>
+#include <spdk/bit_pool.h>
 #include <spdk_internal/event.h>
 #include <spdk_internal/init.h>
 #include <spdk_internal/thread.h>
 #include <spdk_internal/lvolstore.h>
 #include <thread/thread_internal.h>
 #include <bdev/bdev_internal.h>
+#include <blob/blobstore.h>
 
 #include "helpers/logwrapper.h"
 #include "helpers/nvme_helper.h"
