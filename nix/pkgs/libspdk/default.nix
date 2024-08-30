@@ -85,15 +85,15 @@ let
   #
   drvAttrs = rec {
     pname = "libspdk${nameSuffix}";
-    version = "24.05-981a969";
+    version = "24.05-e5f7aa4";
 
     src = [
       (fetchFromGitHub {
         name = pname;
         owner = "openebs";
         repo = "spdk";
-        rev = "981a96931ce5ed5f67e0c4cdc3b0e2c0a71e2b24";
-        sha256 = "sha256-DkA2Pgcpyfss2WV+lXWFnvvcolvgu18kD5BCc+1qo64=";
+        rev = "e5f7aa4c8250fd517764f073637f956b78c323c2";
+        sha256 = "sha256-VqaX5LAuNg0bAPz76xz2EU0XXLoyCwqDlP6+XWE5o14=";
         fetchSubmodules = true;
       })
       ../../../build_scripts
