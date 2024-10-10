@@ -83,23 +83,31 @@ let
   #
   # Derivation attributes
   #
-  drvAttrs = rec {
+  spdk = rec {
+    rev = "e5f7aa4c8250fd517764f073637f956b78c323c2";
+    sha256 = "sha256-VqaX5LAuNg0bAPz76xz2EU0XXLoyCwqDlP6+XWE5o14=";
     pname = "libspdk${nameSuffix}";
-    version = "24.05-e5f7aa4";
+    version = "24.05-${lib.substring 0 7 rev}";
+    name = "${pname}-${version}";
+  };
+  drvAttrs = rec {
+    pname = spdk.pname;
+    version = spdk.version;
 
     src = [
       (fetchFromGitHub {
-        name = pname;
+        # Note that this would only rebuild if the first 7 chars differ, but in practice should be fine
+        name = spdk.name;
         owner = "openebs";
         repo = "spdk";
-        rev = "e5f7aa4c8250fd517764f073637f956b78c323c2";
-        sha256 = "sha256-VqaX5LAuNg0bAPz76xz2EU0XXLoyCwqDlP6+XWE5o14=";
+        rev = spdk.rev;
+        sha256 = spdk.sha256;
         fetchSubmodules = true;
       })
       ../../../build_scripts
     ];
 
-    sourceRoot = pname;
+    sourceRoot = spdk.name;
 
     nativeBuildInputs = [
       cmake
