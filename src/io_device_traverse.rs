@@ -170,7 +170,10 @@ extern "C" fn inner_traverse_channel<ChannelData, Ctx>(
     let ctx = TraverseCtx::<ChannelData, Ctx>::from_iter(i);
     let mut chan = IoChannel::<ChannelData>::from_iter(i);
 
-    let rc = (ctx.channel_cb)(chan.channel_data_mut(), &mut ctx.ctx);
+    let mut rc = ChannelTraverseStatus::Ok;
+    if chan.thread_name() != "init_thread" {
+        rc = (ctx.channel_cb)(chan.channel_data_mut(), &mut ctx.ctx);
+    }
 
     unsafe {
         spdk_for_each_channel_continue(i, rc.into());
