@@ -172,7 +172,7 @@ where
             );
             if rc != 0 {
                 return Err(BdevDescError::LbaLock {
-                    source: nix::errno::from_i32(rc),
+                    source: nix::errno::Errno::from_raw(rc),
                     bdev_name: self.bdev().name().to_owned(),
                 });
             }
@@ -182,7 +182,7 @@ where
         let rc = r.await.unwrap();
         if rc != 0 {
             return Err(BdevDescError::LbaLock {
-                source: nix::errno::from_i32(rc),
+                source: nix::errno::Errno::from_raw(rc),
                 bdev_name: self.bdev().name().to_owned(),
             });
         }
@@ -211,7 +211,7 @@ where
             );
             if rc != 0 {
                 return Err(BdevDescError::LbaUnlock {
-                    source: nix::errno::from_i32(rc),
+                    source: nix::errno::Errno::from_raw(rc),
                     bdev_name: self.bdev().name().to_owned(),
                 });
             }
@@ -221,7 +221,7 @@ where
         let rc = r.await.unwrap();
         if rc != 0 {
             return Err(BdevDescError::LbaUnlock {
-                source: nix::errno::from_i32(rc),
+                source: nix::errno::Errno::from_raw(rc),
                 bdev_name: self.bdev().name().to_owned(),
             });
         }

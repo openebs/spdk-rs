@@ -57,7 +57,7 @@ pub async fn bdev_nvme_delete_async(
     // `bdev_nvme_delete` failed to run: callback won't be called.
     if errno < 0 {
         drop_cb_arg::<()>(arg);
-        return Ok(Err(Errno::from_i32(-errno)));
+        return Ok(Err(Errno::from_raw(-errno)));
     }
 
     r.await

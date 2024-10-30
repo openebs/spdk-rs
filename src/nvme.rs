@@ -149,7 +149,7 @@ impl Debug for NvmeStatus {
             NvmeStatus::VendorSpecific(s) => {
                 let s = *s;
                 let en = if s > 0 {
-                    Errno::from_i32(s)
+                    Errno::from_raw(s)
                 } else {
                     Errno::UnknownErrno
                 };

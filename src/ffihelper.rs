@@ -190,7 +190,7 @@ pub fn errno_result_from_i32<T>(val: T, errno: i32) -> ErrnoResult<T> {
     if errno == 0 {
         Ok(val)
     } else {
-        Err(Errno::from_i32(errno.abs()))
+        Err(Errno::from_raw(errno.abs()))
     }
 }
 
@@ -200,7 +200,7 @@ pub fn errno_result_from_i32<T>(val: T, errno: i32) -> ErrnoResult<T> {
 ///
 /// * `errno`: TODO
 pub fn errno_error<T>(errno: i32) -> ErrnoResult<T> {
-    Err(Errno::from_i32(errno.abs()))
+    Err(Errno::from_raw(errno.abs()))
 }
 
 /// Helper routines to convert from FFI functions

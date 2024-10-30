@@ -76,7 +76,7 @@ where
         match r.await {
             Ok(rc) if rc == 0 => Ok(()),
             Ok(rc) => Err(BdevUnregisterFailed {
-                source: nix::errno::Errno::from_i32(rc.abs()),
+                source: nix::errno::Errno::from_raw(rc.abs()),
                 name,
             }),
             Err(error) => Err(BdevUnregisterFailed {

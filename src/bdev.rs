@@ -195,7 +195,7 @@ where
         let alias = alias.into_cstring();
         let ret =
             unsafe { spdk_bdev_alias_add(self.as_inner_ptr(), alias.as_ptr()) }
-                .to_result(Errno::from_i32);
+                .to_result(Errno::from_raw);
 
         matches!(ret, Err(Errno::EEXIST) | Ok(_))
     }
