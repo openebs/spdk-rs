@@ -42,14 +42,14 @@ if [[ $(uname) != "Linux" ]]; then
   err_exit "must be run on Linux with Mayastor prerequisities installed"
 fi
 
-# Rust nightly toolchain "2021-11-30" installs cargo version "2021-11-24" and
+# Example, Rust nightly toolchain "2021-11-30" installs cargo version "2021-11-24" and
 # rustfmt and clippy "2021-11-29".
 # When upgrading Rust toolchain version, check 'cargo --version',
 # 'cargo fmt --version', 'cargo clippy --version' and put them here.
-RUST_TOOLCHAIN_VER="2023-08-25"
-WANTED_CARGO_VER="cargo 1.74.0-nightly (* 2023-08-22)"
-WANTED_RUSTFMT_VER="rustfmt 1.6.0-nightly (* 2023-08-24)"
-WANTED_CLIPPY_VER="clippy 0.1.73 (* 2023-08-24)"
+RUST_TOOLCHAIN_VER="2024-10-30"
+WANTED_CARGO_VER="cargo 1.84.0-nightly (* 2024-10-25)"
+WANTED_RUSTFMT_VER="rustfmt 1.8.0-nightly (* 2024-10-29)"
+WANTED_CLIPPY_VER="clippy 0.1.84 (* 2024-10-29)"
 CARGO="cargo"
 CARGO_MODE="system"
 

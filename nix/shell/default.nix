@@ -24,6 +24,7 @@ rec {
   ++ cfg.buildInputs;
 
   LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+  NODE_PATH = "${pkgs.nodePackages."@commitlint/config-conventional"}/lib/node_modules";
 
   shellHook = ''
     echo "Running shell hooks..."

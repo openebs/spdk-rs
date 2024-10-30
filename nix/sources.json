@@ -11,18 +11,6 @@
         "url": "https://github.com/linux-nvme/libnvme/archive/v1.0-rc3.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
-    "nvme-cli": {
-        "branch": "master",
-        "description": "NVM-Express user space tooling for Linux.",
-        "homepage": "https://github.com/linux-nvme/nvme-cli",
-        "owner": "linux-nvme",
-        "repo": "nvme-cli",
-        "rev": "v1.16",
-        "sha256": "130x5cf6kkcnyg5qd35igii249ysfjnbxp1pxfwkickmqg3d007z",
-        "type": "tarball",
-        "url": "https://github.com/linux-nvme/nvme-cli/archive/refs/tags/v1.16.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
     "niv": {
         "branch": "master",
         "description": "Easy dependency management for Nix projects",
@@ -36,15 +24,27 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
-        "branch": "master",
+        "branch": "release-24.05",
         "description": "A read-only mirror of NixOS/nixpkgs tracking the released channels. Send issues and PRs to",
         "homepage": "https://github.com/NixOS/nixpkgs",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "22.11",
-        "sha256": "11w3wn2yjhaa5pv20gbfbirvjq6i3m7pqrq2msf0g7cv44vijwgw",
+        "rev": "b06ca0fab3185980a7501d7db273bb9f864580d4",
+        "sha256": "08pvwij6855wyxq6giyjwj3mdbrl118zzvbr7xdynmb7w9r9lv0l",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/22.11.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/b06ca0fab3185980a7501d7db273bb9f864580d4.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "nvme-cli": {
+        "branch": "master",
+        "description": "NVM-Express user space tooling for Linux.",
+        "homepage": "https://github.com/linux-nvme/nvme-cli",
+        "owner": "linux-nvme",
+        "repo": "nvme-cli",
+        "rev": "v1.16",
+        "sha256": "130x5cf6kkcnyg5qd35igii249ysfjnbxp1pxfwkickmqg3d007z",
+        "type": "tarball",
+        "url": "https://github.com/linux-nvme/nvme-cli/archive/refs/tags/v1.16.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "rust-overlay": {
@@ -53,10 +53,10 @@
         "homepage": "",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "673e2d3d2a3951adc6f5e3351c9fce6ad130baed",
-        "sha256": "sha256:1vgjkaikv8lwm3kmb4jbc96kxhdy38nmf1v4s7nmx6j4bd8pmlyd",
+        "rev": "7509d76ce2b3d22b40bd25368b45c0a9f7f36c89",
+        "sha256": "12gh5a0clc11b219xrvh08f35v959wnnmm089ys1cmqfdxx9v77n",
         "type": "tarball",
-        "url": "https://github.com/oxalica/rust-overlay/archive/673e2d3d2a3951adc6f5e3351c9fce6ad130baed.tar.gz",
+        "url": "https://github.com/oxalica/rust-overlay/archive/7509d76ce2b3d22b40bd25368b45c0a9f7f36c89.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

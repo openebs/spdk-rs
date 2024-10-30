@@ -120,9 +120,9 @@ let
       ninja
       pkg-config
       procps
-      python3
       udev
       utillinux
+      (python3.withPackages (ps: with ps; [ pyelftools ]))
     ] ++ extraBuildInputs;
 
     buildInputs = [
@@ -145,9 +145,12 @@ let
       numactl
       openssl
       rdma-core
-      (python3.withPackages (ps: with ps; [ pyelftools ]))
       zlib
     ] ++ extraBuildInputs;
+
+    propagatedBuildInputs = [
+      python3.pkgs.configshell
+    ];
 
     outputs = [ "out" ] ++ lib.optional (fioOutput != "out") fioOutput;
 
