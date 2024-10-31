@@ -4,6 +4,7 @@ use std::{
     fmt::{Debug, Formatter},
     marker::PhantomData,
     os::raw::c_void,
+    ptr,
     ptr::NonNull,
     slice::{from_raw_parts, from_raw_parts_mut},
 };
@@ -40,7 +41,6 @@ pub trait AsIoVecs {
 /// # Generic Arguments
 ///
 /// * `BdevData`: TODO
-#[derive(Copy)]
 pub struct BdevIo<BdevData>
 where
     BdevData: BdevOps,
@@ -49,6 +49,8 @@ where
     inner: NonNull<spdk_bdev_io>,
     /// TODO
     _data: PhantomData<BdevData>,
+    #[cfg(debug_assertions)]
+    _no_iov: Vec<IoVec>,
 }
 
 impl<BdevData> BdevIo<BdevData>
@@ -114,10 +116,11 @@ where
     pub fn iovs(&self) -> &[IoVec] {
         unsafe {
             let bdev = self.as_ref().u.bdev;
-            std::slice::from_raw_parts(
-                bdev.iovs as *const IoVec,
-                bdev.iovcnt as usize,
-            )
+            #[cfg(debug_assertions)]
+            if bdev.iovs.is_null() {
+                return &self._no_iov;
+            }
+            from_raw_parts(bdev.iovs as *const IoVec, bdev.iovcnt as usize)
         }
     }
 
@@ -126,10 +129,7 @@ where
     pub fn iovs_mut(&self) -> &mut [IoVec] {
         unsafe {
             let bdev = self.as_ref().u.bdev;
-            std::slice::from_raw_parts_mut(
-                bdev.iovs as *mut IoVec,
-                bdev.iovcnt as usize,
-            )
+            from_raw_parts_mut(bdev.iovs as *mut IoVec, bdev.iovcnt as usize)
         }
     }
 
@@ -254,6 +254,8 @@ where
         BdevIo {
             inner: NonNull::new(bio).unwrap(),
             _data: Default::default(),
+            #[cfg(debug_assertions)]
+            _no_iov: vec![],
         }
     }
 
@@ -321,6 +323,8 @@ where
         Self {
             inner: self.inner,
             _data: Default::default(),
+            #[cfg(debug_assertions)]
+            _no_iov: vec![],
         }
     }
 }
