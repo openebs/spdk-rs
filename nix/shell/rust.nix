@@ -31,6 +31,14 @@ let
     echo "Target debug dir : $RUST_TARGET_DEBUG"
   '';
 
+  rustCargoFix = ''
+    if [ -d $HOME/.cargo/bin ]; then
+      # Adding ~/.cargo/bin to the path let's us carry on using rustup but it lowers its
+      # priority: https://github.com/rust-lang/cargo/pull/11023
+      export PATH=$PATH:$HOME/.cargo/bin
+    fi
+  '';
+
   configurations = {
     # Stable Rust channel configuration.
     stable = {
@@ -41,8 +49,7 @@ let
 
       inherit shellEnv;
 
-      shellHook = ''
-      '';
+      shellHook = rustCargoFix;
 
       shellInfoHook = ''
         echo "Rust channel     : stable"
@@ -58,8 +65,7 @@ let
 
       inherit shellEnv;
 
-      shellHook = ''
-      '';
+      shellHook = rustCargoFix;
 
       shellInfoHook = ''
         echo "Rust channel     : nightly (explicity selected)"
@@ -87,7 +93,7 @@ let
         RUST_TARGET_DEBUG = "target/x86_64-unknown-linux-gnu/debug";
       };
 
-      shellHook = ''
+      shellHook = rustCargoFix + ''
         export LLVM_SYMBOLIZER_DIR=$(dirname $(realpath $(which llvm-symbolizer)))
       '';
 

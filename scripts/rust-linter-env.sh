@@ -68,7 +68,7 @@ if [ -n "$RUST_NIGHTLY_PATH" ]; then
   PATH=$RUST_NIGHTLY_PATH/bin:$PATH
   # cargo attempts to search in ~/.cargo/bin first, so we need to put
   # that at the end of the path as a quirky WA... sad :(
-  PATH=$PATH:~/.cargo/bin
+  PATH=$PATH:$HOME/.cargo/bin
 fi
 
 # Try cargo from PATH.
