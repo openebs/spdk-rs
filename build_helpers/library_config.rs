@@ -120,24 +120,19 @@ impl Display for Library {
 
 impl Library {
     /// Creates a new `Library` instance.
-    fn new<U: AsRef<OsStr>, V: AsRef<OsStr>>(
-        name: U,
-        parent_name: V,
-        cfg: &LibraryConfig,
-    ) -> Self {
+    fn new<U: AsRef<OsStr>, V: AsRef<OsStr>>(name: U, parent_name: V, cfg: &LibraryConfig) -> Self {
         let pkg_name = name.as_ref().to_str().unwrap();
 
-        let (lib_name, is_ar) =
-            if pkg_name.starts_with(":lib") && pkg_name.ends_with(".a") {
-                let s = pkg_name
-                    .strip_prefix(":lib")
-                    .unwrap()
-                    .strip_suffix(".a")
-                    .unwrap();
-                (OsString::from(&s), true)
-            } else {
-                (OsString::from(&pkg_name), false)
-            };
+        let (lib_name, is_ar) = if pkg_name.starts_with(":lib") && pkg_name.ends_with(".a") {
+            let s = pkg_name
+                .strip_prefix(":lib")
+                .unwrap()
+                .strip_suffix(".a")
+                .unwrap();
+            (OsString::from(&s), true)
+        } else {
+            (OsString::from(&pkg_name), false)
+        };
 
         let is_system = cfg.marked_system.contains(&lib_name);
 
@@ -153,10 +148,7 @@ impl Library {
     /// Prints Cargo link instructions.
     fn cargo(&self) {
         if self.is_system {
-            println!(
-                "cargo:rustc-link-lib={}",
-                self.lib_name.to_str().unwrap()
-            );
+            println!("cargo:rustc-link-lib={}", self.lib_name.to_str().unwrap());
         } else {
             // Use 'whole-archive' flag on non-system libs.
             println!(
@@ -224,16 +216,10 @@ impl LibraryConfig {
     /// Adds a new pkg_config search path. The path must exist on the file
     /// system.
     #[allow(dead_code)]
-    pub fn add_pkg_cfg_path<T: AsRef<Path>>(
-        &self,
-        new_path: T,
-    ) -> Result<(), Error> {
+    pub fn add_pkg_cfg_path<T: AsRef<Path>>(&self, new_path: T) -> Result<(), Error> {
         match fs::canonicalize(&new_path) {
             Ok(cp) => {
-                println!(
-                    "Added PKG_CONFIG_PATH_FOR_TARGET: {}",
-                    cp.to_str().unwrap()
-                );
+                println!("Added PKG_CONFIG_PATH_FOR_TARGET: {}", cp.to_str().unwrap());
                 append_path_var(OsStr::new("PKG_CONFIG_PATH_FOR_TARGET"), &cp);
                 Ok(())
             }
@@ -314,10 +300,7 @@ impl LibraryConfig {
     }
 
     /// Finds a library via pkg_config.
-    pub fn find_lib<T: AsRef<OsStr>>(
-        &mut self,
-        lib_name: T,
-    ) -> Result<(), Error> {
+    pub fn find_lib<T: AsRef<OsStr>>(&mut self, lib_name: T) -> Result<(), Error> {
         let lib_name = OsString::from(&lib_name);
         let library = self.cfg.probe(lib_name.to_str().unwrap())?;
 
@@ -425,11 +408,7 @@ impl LibraryConfig {
 
     /// Builds a shared (.so) library from all the libraries found previously.
     #[allow(dead_code)]
-    pub fn build_shared_lib(
-        &self,
-        out_dir: &Path,
-        lib_name: &OsStr,
-    ) -> Result<PathBuf, Error> {
+    pub fn build_shared_lib(&self, out_dir: &Path, lib_name: &OsStr) -> Result<PathBuf, Error> {
         let mut tool = Tool::new()?;
 
         tool.add_flag("shared");

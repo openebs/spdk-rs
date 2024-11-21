@@ -41,10 +41,7 @@ impl Tool {
     }
 
     /// Creates a shared library path from the given directory and library name.
-    pub fn make_shared_lib_path(
-        out_dir: &Path,
-        lib_name: &OsStr,
-    ) -> Result<PathBuf, Error> {
+    pub fn make_shared_lib_path(out_dir: &Path, lib_name: &OsStr) -> Result<PathBuf, Error> {
         let lib_path = &format!("lib{}.so", lib_name.to_str().unwrap());
         let res = out_dir.to_path_buf().join(lib_path);
         Ok(res)

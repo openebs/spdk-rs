@@ -19,7 +19,7 @@ let
 
   shellEnv = {
     # Path to nightly Rust, needed for linter and style.
-    RUST_NIGHTLY_PATH = rustChannels.nightly;
+    # RUST_NIGHTLY_PATH = rustChannels.nightly;
 
     # Path to debug output dir.
     RUST_TARGET_DEBUG = "target/debug";

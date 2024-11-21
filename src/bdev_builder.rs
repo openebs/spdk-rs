@@ -4,24 +4,10 @@ use crate::{
     bdev::Container,
     ffihelper::IntoCString,
     libspdk::{
-        spdk_bdev,
-        spdk_bdev_fn_table,
-        spdk_bdev_io,
-        spdk_bdev_io_type,
-        spdk_get_io_channel,
-        spdk_io_channel,
-        spdk_json_write_ctx,
-        SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE,
+        spdk_bdev, spdk_bdev_fn_table, spdk_bdev_io, spdk_bdev_io_type, spdk_get_io_channel,
+        spdk_io_channel, spdk_json_write_ctx, SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE,
     },
-    Bdev,
-    BdevIo,
-    BdevModule,
-    BdevOps,
-    IoChannel,
-    IoDevice,
-    IoType,
-    JsonWriteContext,
-    Uuid,
+    Bdev, BdevIo, BdevModule, BdevOps, IoChannel, IoDevice, IoType, JsonWriteContext, Uuid,
 };
 
 /// Builder for `Bdev` structure.
@@ -211,8 +197,7 @@ where
                 optimal_open_zones: Default::default(),
                 media_events: Default::default(),
                 ctratt: unsafe { zeroed() },
-                reset_io_drain_timeout:
-                    SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE as u16,
+                reset_io_drain_timeout: SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE as u16,
                 module: self.module.as_ptr(),
                 fn_table: null_mut::<spdk_bdev_fn_table>(),
                 internal: unsafe { zeroed() },
@@ -302,9 +287,7 @@ unsafe extern "C" fn inner_bdev_submit_request<BdevData>(
 /// # Safety
 ///
 /// TODO
-unsafe extern "C" fn inner_bdev_get_io_channel<BdevData>(
-    ctx: *mut c_void,
-) -> *mut spdk_io_channel
+unsafe extern "C" fn inner_bdev_get_io_channel<BdevData>(ctx: *mut c_void) -> *mut spdk_io_channel
 where
     BdevData: BdevOps<BdevData = BdevData>,
 {
@@ -327,9 +310,7 @@ where
 /// # Safety
 ///
 /// TODO
-unsafe extern "C" fn inner_bdev_get_module_ctx<BdevData>(
-    _ctx: *mut c_void,
-) -> *mut c_void
+unsafe extern "C" fn inner_bdev_get_module_ctx<BdevData>(_ctx: *mut c_void) -> *mut c_void
 where
     BdevData: BdevOps<BdevData = BdevData>,
 {

@@ -3,9 +3,7 @@ use std::marker::PhantomData;
 
 use crate::{
     libspdk::{spdk_bdev, spdk_bdev_first, spdk_bdev_module, spdk_bdev_next},
-    Bdev,
-    BdevModule,
-    BdevOps,
+    Bdev, BdevModule, BdevOps,
 };
 
 impl<BdevData> Bdev<BdevData>

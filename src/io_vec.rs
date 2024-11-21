@@ -32,10 +32,7 @@ impl IoVec {
     /// Creates a new `IoVec` instance.
     #[inline(always)]
     pub fn new(iov_base: *mut c_void, iov_len: u64) -> Self {
-        Self(libspdk::iovec {
-            iov_base,
-            iov_len,
-        })
+        Self(libspdk::iovec { iov_base, iov_len })
     }
 
     /// Returns length of the `IoVec` buffer.
@@ -68,18 +65,14 @@ impl IoVec {
     #[inline(always)]
     pub fn as_slice(&self) -> &[u8] {
         assert!(self.is_initialized());
-        unsafe {
-            from_raw_parts(self.as_ptr() as *const _, self.len() as usize)
-        }
+        unsafe { from_raw_parts(self.as_ptr() as *const _, self.len() as usize) }
     }
 
     /// Returns mutable `u8` slice representation of `IoVec`.
     #[inline(always)]
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         assert!(self.is_initialized());
-        unsafe {
-            from_raw_parts_mut(self.as_mut_ptr() as *mut _, self.len() as usize)
-        }
+        unsafe { from_raw_parts_mut(self.as_mut_ptr() as *mut _, self.len() as usize) }
     }
 
     /// TODO
@@ -96,13 +89,7 @@ impl IoVec {
 
     /// Fills the buffer with the given value.
     pub fn fill(&mut self, val: u8) {
-        unsafe {
-            std::ptr::write_bytes(
-                self.0.iov_base as *mut u8,
-                val,
-                self.0.iov_len as usize,
-            )
-        }
+        unsafe { std::ptr::write_bytes(self.0.iov_base as *mut u8, val, self.0.iov_len as usize) }
     }
 
     /// Compares two buffer and returns the index of the first mismatching
@@ -119,7 +106,7 @@ impl IoVec {
             return Some(len_b);
         }
 
-        for i in 0 .. len_a {
+        for i in 0..len_a {
             if a[i] != b[i] {
                 return Some(i);
             }

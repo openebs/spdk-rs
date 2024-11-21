@@ -22,11 +22,7 @@ pub trait BdevOps {
     ///
     /// * `chan`: TODO
     /// * `bio`: TODO
-    fn submit_request(
-        &self,
-        chan: IoChannel<Self::ChannelData>,
-        bio: BdevIo<Self::BdevData>,
-    );
+    fn submit_request(&self, chan: IoChannel<Self::ChannelData>, bio: BdevIo<Self::BdevData>);
 
     /// TODO
     ///

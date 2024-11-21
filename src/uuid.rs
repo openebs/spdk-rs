@@ -26,9 +26,7 @@ impl Uuid {
     ///
     /// * `u`: TODO
     pub(crate) fn new(u: &spdk_uuid) -> Self {
-        Self {
-            inner: *u,
-        }
+        Self { inner: *u }
     }
 
     /// Consumes the `Uuid` and returns its SPDK internal representation.
@@ -73,9 +71,7 @@ impl From<uuid::Uuid> for Uuid {
             )
         };
 
-        Self {
-            inner,
-        }
+        Self { inner }
     }
 }
 
@@ -87,9 +83,7 @@ impl From<Uuid> for uuid::Uuid {
 
 impl Clone for Uuid {
     fn clone(&self) -> Self {
-        Self {
-            inner: self.inner,
-        }
+        Self { inner: self.inner }
     }
 }
 

@@ -4,13 +4,10 @@ use std::{marker::PhantomData, os::raw::c_void};
 
 use crate::{
     libspdk::{
-        spdk_for_each_channel,
-        spdk_for_each_channel_continue,
-        spdk_io_channel_iter,
+        spdk_for_each_channel, spdk_for_each_channel_continue, spdk_io_channel_iter,
         spdk_io_channel_iter_get_ctx,
     },
-    IoChannel,
-    IoDevice,
+    IoChannel, IoDevice,
 };
 
 /// TODO
@@ -51,9 +48,7 @@ impl From<ChannelTraverseStatus> for i32 {
 /// * `'Ctx`: TODO
 struct TraverseCtx<'a, 'b, 'c, ChannelData, Ctx> {
     /// TODO
-    channel_cb: Box<
-        dyn FnMut(&mut ChannelData, &mut Ctx) -> ChannelTraverseStatus + 'a,
-    >,
+    channel_cb: Box<dyn FnMut(&mut ChannelData, &mut Ctx) -> ChannelTraverseStatus + 'a>,
     /// TODO
     done_cb: Box<dyn FnMut(ChannelTraverseStatus, Ctx) + 'b>,
     /// TODO
@@ -73,8 +68,7 @@ impl<'a, 'b, 'c, ChannelData, Ctx> TraverseCtx<'a, 'b, 'c, ChannelData, Ctx> {
     /// * `done_cb`: TODO
     /// * `caller_ctx`: TODO
     fn new(
-        channel_cb: impl FnMut(&mut ChannelData, &mut Ctx) -> ChannelTraverseStatus
-            + 'a,
+        channel_cb: impl FnMut(&mut ChannelData, &mut Ctx) -> ChannelTraverseStatus + 'a,
         done_cb: impl FnMut(ChannelTraverseStatus, Ctx) + 'b,
         caller_ctx: Ctx,
     ) -> Self {
@@ -111,10 +105,7 @@ pub trait IoDeviceChannelTraverse: IoDevice {
     fn traverse_io_channels<'a, 'b, Ctx>(
         &self,
         context: Ctx,
-        channel_cb: impl FnMut(
-                &mut <Self as IoDevice>::ChannelData,
-                &mut Ctx,
-            ) -> ChannelTraverseStatus
+        channel_cb: impl FnMut(&mut <Self as IoDevice>::ChannelData, &mut Ctx) -> ChannelTraverseStatus
             + 'a,
         done_cb: impl FnMut(ChannelTraverseStatus, Ctx) + 'b,
     ) {
@@ -164,9 +155,7 @@ pub trait IoDeviceChannelTraverse: IoDevice {
 /// # Arguments
 ///
 /// * `i`: TODO
-extern "C" fn inner_traverse_channel<ChannelData, Ctx>(
-    i: *mut spdk_io_channel_iter,
-) {
+extern "C" fn inner_traverse_channel<ChannelData, Ctx>(i: *mut spdk_io_channel_iter) {
     let ctx = TraverseCtx::<ChannelData, Ctx>::from_iter(i);
     let mut chan = IoChannel::<ChannelData>::from_iter(i);
 
@@ -209,10 +198,7 @@ where
     T: Send,
     F: FnMut(&mut D::ChannelData, &T) -> (),
 {
-    fn channel_cb(
-        channel: &mut D::ChannelData,
-        ctx: &mut Self,
-    ) -> ChannelTraverseStatus {
+    fn channel_cb(channel: &mut D::ChannelData, ctx: &mut Self) -> ChannelTraverseStatus {
         (ctx.func)(channel, &ctx.data);
         ChannelTraverseStatus::Ok
     }

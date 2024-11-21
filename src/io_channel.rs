@@ -3,12 +3,8 @@ use std::ops::Deref;
 use std::{fmt, marker::PhantomData, ptr::NonNull};
 
 use crate::libspdk::{
-    spdk_io_channel,
-    spdk_io_channel_get_io_device_name,
-    spdk_io_channel_iter,
-    spdk_io_channel_iter_get_channel,
-    spdk_put_io_channel,
-    spdk_rs_io_channel_get_ctx,
+    spdk_io_channel, spdk_io_channel_get_io_device_name, spdk_io_channel_iter,
+    spdk_io_channel_iter_get_channel, spdk_put_io_channel, spdk_rs_io_channel_get_ctx,
     spdk_thread_get_name,
 };
 
@@ -30,19 +26,13 @@ impl<ChannelData> IoChannel<ChannelData> {
     /// Returns a reference to the channel data instance that this I/O channel
     /// owns.
     pub fn channel_data(&self) -> &ChannelData {
-        unsafe {
-            &*(spdk_rs_io_channel_get_ctx(self.inner.as_ptr())
-                as *mut ChannelData)
-        }
+        unsafe { &*(spdk_rs_io_channel_get_ctx(self.inner.as_ptr()) as *mut ChannelData) }
     }
 
     /// Returns a mutable reference to the channel data instance that this I/O
     /// channel owns.
     pub fn channel_data_mut(&mut self) -> &mut ChannelData {
-        unsafe {
-            &mut *(spdk_rs_io_channel_get_ctx(self.inner.as_ptr())
-                as *mut ChannelData)
-        }
+        unsafe { &mut *(spdk_rs_io_channel_get_ctx(self.inner.as_ptr()) as *mut ChannelData) }
     }
 
     /// Returns the name of the I/O channel which is used to register the
@@ -50,22 +40,18 @@ impl<ChannelData> IoChannel<ChannelData> {
     /// or an actual name.
     fn name(&self) -> &str {
         unsafe {
-            std::ffi::CStr::from_ptr(spdk_io_channel_get_io_device_name(
-                self.as_ptr(),
-            ))
-            .to_str()
-            .unwrap()
+            std::ffi::CStr::from_ptr(spdk_io_channel_get_io_device_name(self.as_ptr()))
+                .to_str()
+                .unwrap()
         }
     }
 
     /// TODO
     fn thread_name(&self) -> &str {
         unsafe {
-            std::ffi::CStr::from_ptr(spdk_thread_get_name(
-                self.inner.as_ref().thread,
-            ))
-            .to_str()
-            .unwrap()
+            std::ffi::CStr::from_ptr(spdk_thread_get_name(self.inner.as_ref().thread))
+                .to_str()
+                .unwrap()
         }
     }
 

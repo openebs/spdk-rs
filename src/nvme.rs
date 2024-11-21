@@ -5,24 +5,12 @@ use std::{
 };
 
 use crate::libspdk::{
-    spdk_bdev_io,
-    spdk_bdev_io_get_nvme_status,
-    spdk_nvme_command_specific_status_code,
-    spdk_nvme_cpl,
-    spdk_nvme_generic_command_status_code,
-    spdk_nvme_media_error_status_code,
-    spdk_nvme_path_status_code,
-    spdk_nvme_status,
-    spdk_nvme_status_code_type,
-    spdk_nvmf_request,
-    SPDK_NVME_SCT_COMMAND_SPECIFIC,
-    SPDK_NVME_SCT_GENERIC,
-    SPDK_NVME_SCT_MEDIA_ERROR,
-    SPDK_NVME_SCT_PATH,
-    SPDK_NVME_SCT_VENDOR_SPECIFIC,
-    SPDK_NVME_SC_DATA_TRANSFER_ERROR,
-    SPDK_NVME_SC_DEALLOCATED_OR_UNWRITTEN_BLOCK,
-    SPDK_NVME_SC_SUCCESS,
+    spdk_bdev_io, spdk_bdev_io_get_nvme_status, spdk_nvme_command_specific_status_code,
+    spdk_nvme_cpl, spdk_nvme_generic_command_status_code, spdk_nvme_media_error_status_code,
+    spdk_nvme_path_status_code, spdk_nvme_status, spdk_nvme_status_code_type, spdk_nvmf_request,
+    SPDK_NVME_SCT_COMMAND_SPECIFIC, SPDK_NVME_SCT_GENERIC, SPDK_NVME_SCT_MEDIA_ERROR,
+    SPDK_NVME_SCT_PATH, SPDK_NVME_SCT_VENDOR_SPECIFIC, SPDK_NVME_SC_DATA_TRANSFER_ERROR,
+    SPDK_NVME_SC_DEALLOCATED_OR_UNWRITTEN_BLOCK, SPDK_NVME_SC_SUCCESS,
 };
 
 /// Accessors for `spdk_nvme_cpl` (completion queue entry) struct.
@@ -94,33 +82,23 @@ impl NvmeStatus {
     pub const SUCCESS: Self = NvmeStatus::Generic(SPDK_NVME_SC_SUCCESS);
 
     /// Shorthand for SPDK_NVME_SC_DEALLOCATED_OR_UNWRITTEN_BLOCK.
-    pub const UNWRITTEN_BLOCK: Self =
-        Self::Media(SPDK_NVME_SC_DEALLOCATED_OR_UNWRITTEN_BLOCK);
+    pub const UNWRITTEN_BLOCK: Self = Self::Media(SPDK_NVME_SC_DEALLOCATED_OR_UNWRITTEN_BLOCK);
 
     /// Shorthand for a vendor-specific ENOSPC error.
     pub const NO_SPACE: Self = Self::VendorSpecific(Errno::ENOSPC as i32);
 
     /// A shorthand for a generic data transfer error.
-    pub const DATA_TRANSFER_ERROR: Self =
-        NvmeStatus::Generic(SPDK_NVME_SC_DATA_TRANSFER_ERROR);
+    pub const DATA_TRANSFER_ERROR: Self = NvmeStatus::Generic(SPDK_NVME_SC_DATA_TRANSFER_ERROR);
 
     /// TODO
     pub fn as_sct_sc_codes(&self) -> (i32, i32) {
         unsafe {
             match *self {
-                Self::Generic(c) => {
-                    (transmute(SPDK_NVME_SCT_GENERIC), transmute(c))
-                }
-                Self::CmdSpecific(c) => {
-                    (transmute(SPDK_NVME_SCT_COMMAND_SPECIFIC), transmute(c))
-                }
-                Self::Media(c) => {
-                    (transmute(SPDK_NVME_SCT_MEDIA_ERROR), transmute(c))
-                }
+                Self::Generic(c) => (transmute(SPDK_NVME_SCT_GENERIC), transmute(c)),
+                Self::CmdSpecific(c) => (transmute(SPDK_NVME_SCT_COMMAND_SPECIFIC), transmute(c)),
+                Self::Media(c) => (transmute(SPDK_NVME_SCT_MEDIA_ERROR), transmute(c)),
                 Self::Path(c) => (transmute(SPDK_NVME_SCT_PATH), transmute(c)),
-                Self::VendorSpecific(c) => {
-                    (transmute(SPDK_NVME_SCT_VENDOR_SPECIFIC), transmute(c))
-                }
+                Self::VendorSpecific(c) => (transmute(SPDK_NVME_SCT_VENDOR_SPECIFIC), transmute(c)),
                 Self::Unknown(sct, sc) => (transmute(sct), transmute(sc)),
             }
         }
@@ -180,9 +158,7 @@ impl From<(i32, i32)> for NvmeStatus {
 
             match transmute(sct) {
                 SPDK_NVME_SCT_GENERIC => Self::Generic(transmute(sc)),
-                SPDK_NVME_SCT_COMMAND_SPECIFIC => {
-                    Self::CmdSpecific(transmute(sc))
-                }
+                SPDK_NVME_SCT_COMMAND_SPECIFIC => Self::CmdSpecific(transmute(sc)),
                 SPDK_NVME_SCT_MEDIA_ERROR => Self::Media(transmute(sc)),
                 SPDK_NVME_SCT_PATH => Self::Path(transmute(sc)),
                 SPDK_NVME_SCT_VENDOR_SPECIFIC => Self::VendorSpecific(sc),

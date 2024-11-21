@@ -4,13 +4,8 @@ use std::{
 };
 
 use crate::libspdk::{
-    spdk_cpuset,
-    spdk_cpuset_set_cpu,
-    spdk_cpuset_zero,
-    spdk_env_get_core_count,
-    spdk_env_get_current_core,
-    spdk_env_get_first_core,
-    spdk_env_get_last_core,
+    spdk_cpuset, spdk_cpuset_set_cpu, spdk_cpuset_zero, spdk_env_get_core_count,
+    spdk_env_get_current_core, spdk_env_get_first_core, spdk_env_get_last_core,
     spdk_env_get_next_core,
 };
 
@@ -167,10 +162,7 @@ impl CoreSelectorBase {
     pub fn new() -> Self {
         let cores = Cores::list_cores();
         assert!(cores.len() > 0, "No CPU cores found");
-        Self {
-            cores,
-            next: 0,
-        }
+        Self { cores, next: 0 }
     }
 }
 

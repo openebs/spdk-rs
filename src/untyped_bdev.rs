@@ -14,11 +14,7 @@ impl BdevOps for () {
 
     fn destruct(self: Pin<&mut Self>) {}
 
-    fn submit_request(
-        &self,
-        _chan: IoChannel<Self::ChannelData>,
-        _bio: BdevIo<Self::BdevData>,
-    ) {
+    fn submit_request(&self, _chan: IoChannel<Self::ChannelData>, _bio: BdevIo<Self::BdevData>) {
         unreachable!()
     }
 

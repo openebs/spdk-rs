@@ -3,14 +3,7 @@ use nix::errno::Errno;
 use std::mem::zeroed;
 
 use crate::{
-    ffihelper::{
-        cb_arg,
-        copy_str_with_null,
-        done_errno_cb,
-        drop_cb_arg,
-        ErrnoResult,
-        IntoCString,
-    },
+    ffihelper::{cb_arg, copy_str_with_null, done_errno_cb, drop_cb_arg, ErrnoResult, IntoCString},
     libspdk::{bdev_nvme_delete, nvme_path_id, SPDK_NVME_TRANSPORT_PCIE},
 };
 

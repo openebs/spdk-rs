@@ -11,14 +11,8 @@ use std::{
 use snafu::Snafu;
 
 use crate::{
-    libspdk::{
-        spdk_dma_free,
-        spdk_zmalloc,
-        SPDK_ENV_LCORE_ID_ANY,
-        SPDK_MALLOC_DMA,
-    },
-    AsIoVecs,
-    IoVec,
+    libspdk::{spdk_dma_free, spdk_zmalloc, SPDK_ENV_LCORE_ID_ANY, SPDK_MALLOC_DMA},
+    AsIoVecs, IoVec,
 };
 
 #[derive(Debug, Snafu, Clone)]
@@ -96,9 +90,8 @@ impl DmaBuf {
     pub fn dump(&self) -> String {
         let mut out = String::default();
         let ptr = self.as_ptr();
-        for i in 0 .. self.0.len() {
-            let cur_byte =
-                unsafe { *((ptr as *const u8).wrapping_add(i as usize)) };
+        for i in 0..self.0.len() {
+            let cur_byte = unsafe { *((ptr as *const u8).wrapping_add(i as usize)) };
             // print 16 bytes per line.
             if i > 0 && i % 16 == 0 {
                 out.push_str("\n");

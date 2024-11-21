@@ -6,22 +6,12 @@ use crate::{
     ffihelper::{errno_error, ErrnoResult, IntoCString},
     io_channel::IoChannelGuard,
     libspdk::{
-        bdev_lock_lba_range,
-        bdev_unlock_lba_range,
-        lba_range,
-        spdk_bdev,
-        spdk_bdev_close,
-        spdk_bdev_desc,
-        spdk_bdev_desc_get_bdev,
-        spdk_bdev_event_type,
-        spdk_bdev_get_io_channel,
-        spdk_bdev_open_ext,
-        SPDK_BDEV_EVENT_MEDIA_MANAGEMENT,
-        SPDK_BDEV_EVENT_REMOVE,
+        bdev_lock_lba_range, bdev_unlock_lba_range, lba_range, spdk_bdev, spdk_bdev_close,
+        spdk_bdev_desc, spdk_bdev_desc_get_bdev, spdk_bdev_event_type, spdk_bdev_get_io_channel,
+        spdk_bdev_open_ext, SPDK_BDEV_EVENT_MEDIA_MANAGEMENT, SPDK_BDEV_EVENT_REMOVE,
         SPDK_BDEV_EVENT_RESIZE,
     },
-    Bdev,
-    BdevOps,
+    Bdev, BdevOps,
 };
 
 /// Bdev descriptor errors.
@@ -130,9 +120,7 @@ where
     }
 
     /// Returns a channel to the underlying Bdev.
-    pub fn io_channel(
-        &self,
-    ) -> Result<IoChannelGuard<BdevData::ChannelData>, BdevDescError> {
+    pub fn io_channel(&self) -> Result<IoChannelGuard<BdevData::ChannelData>, BdevDescError> {
         let ch = unsafe { spdk_bdev_get_io_channel(self.as_ptr()) };
         if ch.is_null() {
             error!(
@@ -187,9 +175,7 @@ where
             });
         }
 
-        Ok(LbaRangeLock {
-            ctx,
-        })
+        Ok(LbaRangeLock { ctx })
     }
 
     /// Releases exclusive access over a block range.
@@ -339,10 +325,7 @@ pub struct LbaRange {
 impl LbaRange {
     /// Creates a new LbaRange.
     pub fn new(offset: u64, len: u64) -> LbaRange {
-        LbaRange {
-            offset,
-            len,
-        }
+        LbaRange { offset, len }
     }
 }
 

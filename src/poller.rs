@@ -12,13 +12,8 @@ use crate::{
     cpu_cores::Cores,
     ffihelper::{AsStr, IntoCString},
     libspdk::{
-        spdk_poller,
-        spdk_poller_fn,
-        spdk_poller_pause,
-        spdk_poller_register,
-        spdk_poller_register_named,
-        spdk_poller_resume,
-        spdk_poller_unregister,
+        spdk_poller, spdk_poller_fn, spdk_poller_pause, spdk_poller_register,
+        spdk_poller_register_named, spdk_poller_resume, spdk_poller_unregister,
     },
     Thread,
 };
@@ -64,10 +59,9 @@ where
             .field("interval_us", &self.interval)
             .field(
                 "thread",
-                &self.thread.map_or_else(
-                    || "<none>".to_string(),
-                    |t| t.name().to_string(),
-                ),
+                &self
+                    .thread
+                    .map_or_else(|| "<none>".to_string(), |t| t.name().to_string()),
             )
             .finish()
     }
@@ -139,9 +133,7 @@ where
                     )
                 }
             }
-            None => unsafe {
-                spdk_poller_register(poll_fn, self.as_ctx().0, self.interval)
-            },
+            None => unsafe { spdk_poller_register(poll_fn, self.as_ctx().0, self.interval) },
         };
         self.state = PollerState::Waiting;
     }
@@ -411,8 +403,6 @@ where
 
         trace!("New poller context '{}' ({:p})", ctx.dbg_name(), ctx);
 
-        Poller {
-            inner: Some(ctx),
-        }
+        Poller { inner: Some(ctx) }
     }
 }

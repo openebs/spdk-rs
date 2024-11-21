@@ -11,38 +11,15 @@ use std::{
 use nix::errno::Errno;
 
 use crate::{
-    ffihelper::{
-        errno_result_from_i32,
-        AsStr,
-        ErrnoResult,
-        FfiResult,
-        IntoCString,
-    },
+    ffihelper::{errno_result_from_i32, AsStr, ErrnoResult, FfiResult, IntoCString},
     libspdk::{
-        spdk_bdev,
-        spdk_bdev_alias_add,
-        spdk_bdev_alias_del,
-        spdk_bdev_fn_table,
-        spdk_bdev_get_aliases,
-        spdk_bdev_get_buf_align,
-        spdk_bdev_get_by_name,
-        spdk_bdev_has_write_cache,
-        spdk_bdev_io_type_supported,
-        spdk_bdev_module,
-        spdk_bdev_module_release_bdev,
-        spdk_bdev_register,
-        spdk_bdev_unregister,
-        SPDK_BDEV_CLAIM_EXCL_WRITE,
-        SPDK_BDEV_CLAIM_NONE,
+        spdk_bdev, spdk_bdev_alias_add, spdk_bdev_alias_del, spdk_bdev_fn_table,
+        spdk_bdev_get_aliases, spdk_bdev_get_buf_align, spdk_bdev_get_by_name,
+        spdk_bdev_has_write_cache, spdk_bdev_io_type_supported, spdk_bdev_module,
+        spdk_bdev_module_release_bdev, spdk_bdev_register, spdk_bdev_unregister,
+        SPDK_BDEV_CLAIM_EXCL_WRITE, SPDK_BDEV_CLAIM_NONE,
     },
-    BdevIo,
-    BdevModule,
-    BdevOps,
-    IoChannel,
-    IoDevice,
-    IoType,
-    Thread,
-    Uuid,
+    BdevIo, BdevModule, BdevOps, IoChannel, IoDevice, IoType, Thread, Uuid,
 };
 
 /// Wrapper for SPDK `spdk_bdev` structure and the related API.
@@ -80,11 +57,7 @@ where
     /// TODO
     pub fn unregister_bdev(&mut self) {
         unsafe {
-            spdk_bdev_unregister(
-                self.as_inner_ptr(),
-                None,
-                null_mut::<c_void>(),
-            );
+            spdk_bdev_unregister(self.as_inner_ptr(), None, null_mut::<c_void>());
         }
     }
 
@@ -193,21 +166,15 @@ where
     /// If the alias is already present we return true
     pub fn add_alias(&mut self, alias: &str) -> bool {
         let alias = alias.into_cstring();
-        let ret =
-            unsafe { spdk_bdev_alias_add(self.as_inner_ptr(), alias.as_ptr()) }
-                .to_result(Errno::from_raw);
+        let ret = unsafe { spdk_bdev_alias_add(self.as_inner_ptr(), alias.as_ptr()) }
+            .to_result(Errno::from_raw);
 
         matches!(ret, Err(Errno::EEXIST) | Ok(_))
     }
 
     /// Removes the given alias from the Bdev.
     pub fn remove_alias(&mut self, alias: &str) {
-        unsafe {
-            spdk_bdev_alias_del(
-                self.as_inner_ptr(),
-                alias.into_cstring().as_ptr(),
-            )
-        };
+        unsafe { spdk_bdev_alias_del(self.as_inner_ptr(), alias.into_cstring().as_ptr()) };
     }
 
     /// Returns a list of Bdev aliases.
@@ -261,9 +228,7 @@ where
 
     /// Returns true if this Bdev is claimed by some other component.
     pub fn is_claimed(&self) -> bool {
-        unsafe {
-            self.as_inner_ref().internal.claim_type != SPDK_BDEV_CLAIM_NONE
-        }
+        unsafe { self.as_inner_ref().internal.claim_type != SPDK_BDEV_CLAIM_NONE }
     }
 
     /// Returns true if this Bdev is claimed by the given component.
@@ -296,9 +261,7 @@ where
 
     /// Determines whenever the Bdev supports the requested I/O type.
     pub fn io_type_supported(&self, io_type: IoType) -> bool {
-        unsafe {
-            spdk_bdev_io_type_supported(self.as_inner_ptr(), io_type.into())
-        }
+        unsafe { spdk_bdev_io_type_supported(self.as_inner_ptr(), io_type.into()) }
     }
 
     /// Returns a reference to a data object associated with this Bdev.

@@ -12,9 +12,7 @@ pub enum SpdkError {
     #[snafu(display("Bdev '{name}' is already claimed by another module"))]
     BdevAlreadyClaimed { name: String },
 
-    #[snafu(display(
-        "Bdev '{name}' is not claimed by this module '{mod_name}'",
-    ))]
+    #[snafu(display("Bdev '{name}' is not claimed by this module '{mod_name}'",))]
     BdevNotClaimed { name: String, mod_name: String },
 
     #[snafu(display("Failed to unregister Bdev '{name}': {source}"))]

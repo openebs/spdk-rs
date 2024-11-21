@@ -76,10 +76,7 @@ fn rust_fmt_nightly() -> Option<PathBuf> {
 fn get_spdk_path() -> Result<PathBuf, Error> {
     let spdk_path = match env::var_os("SPDK_ROOT_DIR") {
         Some(s) => {
-            println!(
-                "SPDK_ROOT_DIR variable is set to {}",
-                s.to_str().unwrap()
-            );
+            println!("SPDK_ROOT_DIR variable is set to {}", s.to_str().unwrap());
             PathBuf::from(s)
         }
         None => {
@@ -122,10 +119,7 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
         spdk_path.join("include/spdk/module"),
         spdk_path.join("module"),
     )?;
-    spdk_lib.add_inc_alt(
-        spdk_path.join("include/spdk/lib"),
-        spdk_path.join("lib"),
-    )?;
+    spdk_lib.add_inc_alt(spdk_path.join("include/spdk/lib"), spdk_path.join("lib"))?;
     spdk_lib.add_inc_alt(
         spdk_path.join("include/spdk/lib/ftl"),
         spdk_path.join("lib/ftl"),
@@ -240,11 +234,7 @@ where
                     src_files.push(p);
                 }
             }
-            Err(e) => {
-                return Err(Error::Generic(format!(
-                    "Bad SPDK helper source {s}: {e}"
-                )))
-            }
+            Err(e) => return Err(Error::Generic(format!("Bad SPDK helper source {s}: {e}"))),
         }
     }
 
@@ -357,9 +347,7 @@ fn main() {
         .prepend_enum_name(false)
         .size_t_is_usize(false)
         .generate_inline_functions(true)
-        .parse_callbacks(Box::new(MacroCallback {
-            macros,
-        }));
+        .parse_callbacks(Box::new(MacroCallback { macros }));
 
     // Use nightly rustfmt if it is possible.
     let bindings = if let Some(rust_fmt) = rust_fmt_nightly() {

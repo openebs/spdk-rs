@@ -8,13 +8,10 @@ use serde::Serialize;
 
 use crate::{
     libspdk::{
-        spdk_json_write_array_end,
-        spdk_json_write_ctx,
-        spdk_json_write_named_array_begin,
+        spdk_json_write_array_end, spdk_json_write_ctx, spdk_json_write_named_array_begin,
         spdk_json_write_val_raw,
     },
-    SpdkError,
-    SpdkResult,
+    SpdkError, SpdkResult,
 };
 
 /// Wrapper for SPDK JSON write context (`spdk_json_write_ctx`).
@@ -39,9 +36,7 @@ impl JsonWriteContext {
     {
         match serde_json::to_string(val) {
             Ok(s) => self.write_string(&s),
-            Err(err) => Err(SpdkError::SerdeFailed {
-                source: err,
-            }),
+            Err(err) => Err(SpdkError::SerdeFailed { source: err }),
         }
     }
 
@@ -61,19 +56,12 @@ impl JsonWriteContext {
     ///
     /// * `data`: TODO
     /// * `len`: TODO
-    pub(crate) fn write_raw(
-        &self,
-        data: *const c_void,
-        len: usize,
-    ) -> SpdkResult<()> {
-        let err =
-            unsafe { spdk_json_write_val_raw(self.as_ptr(), data, len as u64) };
+    pub(crate) fn write_raw(&self, data: *const c_void, len: usize) -> SpdkResult<()> {
+        let err = unsafe { spdk_json_write_val_raw(self.as_ptr(), data, len as u64) };
         if err == 0 {
             Ok(())
         } else {
-            Err(SpdkError::JsonWriteFailed {
-                code: err,
-            })
+            Err(SpdkError::JsonWriteFailed { code: err })
         }
     }
 

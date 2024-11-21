@@ -97,11 +97,7 @@ pub fn copy_cstr_with_null(src: &CStr, dst: &mut [c_char]) {
 /// the null byte. If the string to be copied (including the terminating null
 /// byte) is longer than the destination, it is truncated to fit the
 /// destination.
-pub fn copy_cstr_to_buf_with_null(
-    src: &CStr,
-    dst: *mut c_char,
-    dst_size: usize,
-) {
+pub fn copy_cstr_to_buf_with_null(src: &CStr, dst: *mut c_char, dst_size: usize) {
     let bytes = src.to_bytes();
     let count = std::cmp::min(bytes.len(), dst_size - 1);
     unsafe {
@@ -126,8 +122,7 @@ pub fn cb_arg<T>(sender: oneshot::Sender<T>) -> *mut c_void {
 /// Drops a callback argument contructed by `cb_arg`.
 /// This is needed when the callback is known to be not called.
 pub fn drop_cb_arg<T>(sender_ptr: *mut c_void) {
-    let sender =
-        unsafe { Box::from_raw(sender_ptr as *mut oneshot::Sender<T>) };
+    let sender = unsafe { Box::from_raw(sender_ptr as *mut oneshot::Sender<T>) };
     drop(sender);
 }
 
@@ -143,8 +138,7 @@ pub extern "C" fn done_cb<T>(sender_ptr: *mut c_void, val: T)
 where
     T: std::fmt::Debug,
 {
-    let sender =
-        unsafe { Box::from_raw(sender_ptr as *mut oneshot::Sender<T>) };
+    let sender = unsafe { Box::from_raw(sender_ptr as *mut oneshot::Sender<T>) };
 
     // the receiver side might be gone, if this happens it either means that the
     // function has gone out of scope or that the future was cancelled. We can
@@ -167,9 +161,7 @@ where
 /// * `sender_ptr`: TODO
 /// * `errno`: TODO
 pub extern "C" fn done_errno_cb(sender_ptr: *mut c_void, errno: i32) {
-    let sender = unsafe {
-        Box::from_raw(sender_ptr as *mut oneshot::Sender<ErrnoResult<()>>)
-    };
+    let sender = unsafe { Box::from_raw(sender_ptr as *mut oneshot::Sender<ErrnoResult<()>>) };
 
     sender
         .send(errno_result_from_i32((), errno))

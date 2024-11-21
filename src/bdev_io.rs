@@ -11,18 +11,10 @@ use std::{
 
 use crate::{
     libspdk::{
-        spdk_bdev_io,
-        spdk_bdev_io_complete,
-        spdk_bdev_io_get_buf,
-        spdk_io_channel,
-        spdk_nvme_cmd,
+        spdk_bdev_io, spdk_bdev_io_complete, spdk_bdev_io_get_buf, spdk_io_channel, spdk_nvme_cmd,
     },
     nvme::NvmeStatus,
-    Bdev,
-    BdevOps,
-    IoStatus,
-    IoType,
-    IoVec,
+    Bdev, BdevOps, IoStatus, IoType, IoVec,
 };
 
 /// Trait to cast an array-like container to an array of `IoVec`.

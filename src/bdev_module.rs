@@ -3,20 +3,10 @@ use std::{ffi::CString, marker::PhantomData, mem::zeroed, ptr::NonNull};
 use crate::{
     ffihelper::{AsStr, IntoCString},
     libspdk::{
-        spdk_bdev_module,
-        spdk_bdev_module_claim_bdev,
-        spdk_bdev_module_list_add,
-        spdk_bdev_module_list_find,
-        spdk_json_write_ctx,
+        spdk_bdev_module, spdk_bdev_module_claim_bdev, spdk_bdev_module_list_add,
+        spdk_bdev_module_list_find, spdk_json_write_ctx,
     },
-    Bdev,
-    BdevBuilder,
-    BdevDesc,
-    BdevModuleIter,
-    BdevOps,
-    JsonWriteContext,
-    SpdkError,
-    SpdkResult,
+    Bdev, BdevBuilder, BdevDesc, BdevModuleIter, BdevOps, JsonWriteContext, SpdkError, SpdkResult,
 };
 
 /// Wrapper for SPDK Bdev module structure.
@@ -42,9 +32,7 @@ impl BdevModule {
         let s = mod_name.into_cstring();
         let p = unsafe { spdk_bdev_module_list_find(s.as_ptr()) };
         match NonNull::new(p) {
-            Some(inner) => Ok(BdevModule {
-                inner,
-            }),
+            Some(inner) => Ok(BdevModule { inner }),
             None => Err(SpdkError::BdevModuleNotFound {
                 name: String::from(mod_name),
             }),
@@ -73,20 +61,12 @@ impl BdevModule {
     ///
     /// * `bdev`: Block device to be claimed.
     /// * `desc`: Descriptor for the block device.
-    pub fn claim_bdev<T>(
-        &self,
-        bdev: &Bdev<T>,
-        desc: &BdevDesc<T>,
-    ) -> SpdkResult<()>
+    pub fn claim_bdev<T>(&self, bdev: &Bdev<T>, desc: &BdevDesc<T>) -> SpdkResult<()>
     where
         T: BdevOps,
     {
         let err = unsafe {
-            spdk_bdev_module_claim_bdev(
-                bdev.as_inner_ptr(),
-                desc.as_ptr(),
-                self.as_ptr(),
-            )
+            spdk_bdev_module_claim_bdev(bdev.as_inner_ptr(), desc.as_ptr(), self.as_ptr())
         };
 
         if err == 0 {

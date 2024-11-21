@@ -5,23 +5,12 @@ use futures::channel::{oneshot, oneshot::Canceled};
 
 use crate::{
     error::{SpdkError::BdevUnregisterFailed, SpdkResult},
-    ffihelper::{
-        cb_arg,
-        done_errno_cb,
-        errno_error,
-        errno_result_from_i32,
-        ErrnoResult,
-    },
+    ffihelper::{cb_arg, done_errno_cb, errno_error, errno_result_from_i32, ErrnoResult},
     libspdk::{
-        bdev_reset_device_stat,
-        spdk_bdev,
-        spdk_bdev_get_device_stat,
-        spdk_bdev_io_stat,
-        spdk_bdev_unregister,
-        SPDK_BDEV_RESET_STAT_ALL,
+        bdev_reset_device_stat, spdk_bdev, spdk_bdev_get_device_stat, spdk_bdev_io_stat,
+        spdk_bdev_unregister, SPDK_BDEV_RESET_STAT_ALL,
     },
-    Bdev,
-    BdevOps,
+    Bdev, BdevOps,
 };
 
 /// TODO

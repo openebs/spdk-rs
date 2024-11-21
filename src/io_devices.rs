@@ -103,10 +103,7 @@ where
 ///
 /// * `ctx`: TODO
 /// * `buf`: TODO
-unsafe extern "C" fn inner_io_channel_create<Dev>(
-    ctx: *mut c_void,
-    buf: *mut c_void,
-) -> i32
+unsafe extern "C" fn inner_io_channel_create<Dev>(ctx: *mut c_void, buf: *mut c_void) -> i32
 where
     Dev: IoDevice,
 {
@@ -126,10 +123,8 @@ where
 ///
 /// * `ctx`: TODO
 /// * `buf`: TODO
-unsafe extern "C" fn inner_io_channel_destroy<Dev>(
-    ctx: *mut c_void,
-    buf: *mut c_void,
-) where
+unsafe extern "C" fn inner_io_channel_destroy<Dev>(ctx: *mut c_void, buf: *mut c_void)
+where
     Dev: IoDevice,
 {
     let io_dev = from_io_device_id::<Dev>(ctx);

@@ -64,8 +64,7 @@ impl From<u32> for IoType {
 impl From<i32> for IoStatus {
     fn from(s: i32) -> Self {
         assert!(
-            s >= libspdk::SPDK_MIN_BDEV_IO_STATUS
-                && s <= libspdk::SPDK_BDEV_IO_STATUS_SUCCESS,
+            s >= libspdk::SPDK_MIN_BDEV_IO_STATUS && s <= libspdk::SPDK_BDEV_IO_STATUS_SUCCESS,
             "Invalid or unknown status code"
         );
         unsafe { *std::mem::transmute::<*const i32, *const IoStatus>(&s) }

@@ -10,18 +10,9 @@ use std::{
 use crate::{
     cpu_cores::{Cores, CpuMask},
     libspdk::{
-        spdk_get_thread,
-        spdk_set_thread,
-        spdk_thread,
-        spdk_thread_create,
-        spdk_thread_destroy,
-        spdk_thread_exit,
-        spdk_thread_get_by_id,
-        spdk_thread_get_id,
-        spdk_thread_get_name,
-        spdk_thread_is_exited,
-        spdk_thread_poll,
-        spdk_thread_send_msg,
+        spdk_get_thread, spdk_set_thread, spdk_thread, spdk_thread_create, spdk_thread_destroy,
+        spdk_thread_exit, spdk_thread_get_by_id, spdk_thread_get_id, spdk_thread_get_name,
+        spdk_thread_is_exited, spdk_thread_poll, spdk_thread_send_msg,
     },
 };
 
@@ -67,9 +58,7 @@ impl Thread {
             mask.set_cpu(core, true);
             spdk_thread_create(name.as_ptr(), mask.as_ptr())
         })
-        .map(|inner| Self {
-            inner,
-        })
+        .map(|inner| Self { inner })
     }
 
     /// Marks thread as exiting.
@@ -140,9 +129,7 @@ impl Thread {
     /// Returns the primary ("init") SPDK thread or None.
     /// Useful when shutting down before init thread is allocated.
     pub fn primary_safe() -> Option<Self> {
-        NonNull::new(unsafe { spdk_thread_get_by_id(1) }).map(|inner| Self {
-            inner,
-        })
+        NonNull::new(unsafe { spdk_thread_get_by_id(1) }).map(|inner| Self { inner })
     }
 
     /// Returns thread identifier.
@@ -197,11 +184,7 @@ impl Thread {
     }
 
     /// TODO
-    pub unsafe fn send_msg_unsafe(
-        &self,
-        f: extern "C" fn(ctx: *mut c_void),
-        arg: *mut c_void,
-    ) {
+    pub unsafe fn send_msg_unsafe(&self, f: extern "C" fn(ctx: *mut c_void), arg: *mut c_void) {
         let rc = spdk_thread_send_msg(self.as_ptr(), Some(f), arg);
         assert_eq!(rc, 0);
     }
@@ -228,10 +211,7 @@ impl Thread {
             (ctx.closure)(ctx.args);
         }
 
-        let ctx = Box::new(Ctx {
-            closure: f,
-            args,
-        });
+        let ctx = Box::new(Ctx { closure: f, args });
 
         let rc = unsafe {
             spdk_thread_send_msg(
@@ -260,7 +240,7 @@ impl Thread {
     pub fn unaffinitize() {
         unsafe {
             let mut set: libc::cpu_set_t = std::mem::zeroed();
-            for i in 0 .. libc::sysconf(libc::_SC_NPROCESSORS_ONLN) {
+            for i in 0..libc::sysconf(libc::_SC_NPROCESSORS_ONLN) {
                 libc::CPU_SET(i as usize, &mut set)
             }
 
@@ -268,11 +248,7 @@ impl Thread {
                 .into_iter()
                 .for_each(|i| libc::CPU_CLR(i as usize, &mut set));
 
-            libc::sched_setaffinity(
-                0,
-                std::mem::size_of::<libc::cpu_set_t>(),
-                &set,
-            );
+            libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &set);
 
             trace!("pthread started on core {}", libc::sched_getcpu());
         }

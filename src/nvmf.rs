@@ -8,9 +8,7 @@ use std::{
 use crate::{
     ffihelper::AsStr,
     libspdk::{
-        spdk_nvmf_ctrlr,
-        spdk_nvmf_subsystem_event,
-        SPDK_NVMF_SUBSYSTEM_EVENT_HOST_CONNECT,
+        spdk_nvmf_ctrlr, spdk_nvmf_subsystem_event, SPDK_NVMF_SUBSYSTEM_EVENT_HOST_CONNECT,
         SPDK_NVMF_SUBSYSTEM_EVENT_HOST_DISCONNECT,
         SPDK_NVMF_SUBSYSTEM_EVENT_HOST_KEEP_ALIVE_TIMEOUT,
     },
@@ -65,21 +63,16 @@ pub enum NvmfSubsystemEvent {
 }
 
 impl NvmfSubsystemEvent {
-    pub fn from_cb_args(
-        event: spdk_nvmf_subsystem_event,
-        ctx: *mut c_void,
-    ) -> Self {
+    pub fn from_cb_args(event: spdk_nvmf_subsystem_event, ctx: *mut c_void) -> Self {
         match event {
-            SPDK_NVMF_SUBSYSTEM_EVENT_HOST_CONNECT => Self::HostConnect(
-                NvmfController::from(ctx as *mut spdk_nvmf_ctrlr),
-            ),
-            SPDK_NVMF_SUBSYSTEM_EVENT_HOST_DISCONNECT => Self::HostDisconnect(
-                NvmfController::from(ctx as *mut spdk_nvmf_ctrlr),
-            ),
+            SPDK_NVMF_SUBSYSTEM_EVENT_HOST_CONNECT => {
+                Self::HostConnect(NvmfController::from(ctx as *mut spdk_nvmf_ctrlr))
+            }
+            SPDK_NVMF_SUBSYSTEM_EVENT_HOST_DISCONNECT => {
+                Self::HostDisconnect(NvmfController::from(ctx as *mut spdk_nvmf_ctrlr))
+            }
             SPDK_NVMF_SUBSYSTEM_EVENT_HOST_KEEP_ALIVE_TIMEOUT => {
-                Self::HostKeepAliveTimeout(NvmfController::from(
-                    ctx as *mut spdk_nvmf_ctrlr,
-                ))
+                Self::HostKeepAliveTimeout(NvmfController::from(ctx as *mut spdk_nvmf_ctrlr))
             }
             _ => {
                 warn!("Unknown NVMF subsystem event: {event:?}");
