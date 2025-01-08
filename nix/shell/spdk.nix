@@ -18,6 +18,15 @@ let
     echo "FIO path        : $FIO"
   '';
 
+  # Determine the system architecture
+  system = builtins.currentSystem;
+
+  # Define CFLAGS based on the architecture
+  cflagsValue =
+    if system == "aarch64-linux"
+    then "-march=armv8-a+crypto"
+    else "-msse4";
+
   # spdk-path argument overrides spdk argument.
   spdkCfg = if spdk-path != null then "none" else spdk;
 
@@ -63,14 +72,14 @@ let
     };
 
     # Do not use Nix libspdk. User must provide SPDK.
-    # Build environment for development libspdk packahe is provided.
+    # Build environment for development libspdk package is provided.
     none = {
       drv = null;
 
       buildInputs = with pkgs; libspdk-dev.nativeBuildInputs ++ libspdk-dev.buildInputs;
 
       shellEnv = {
-        CFLAGS = "-msse4";
+        CFLAGS = cflagsValue;
         SPDK_RS_BUILD_USE_LOGS = "yes"; # Tells spdk-rs build.rs script to rerun when build_logs dir is updated.
       };
 

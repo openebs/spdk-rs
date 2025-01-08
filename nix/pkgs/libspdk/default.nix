@@ -31,7 +31,6 @@
 , libtool
 , liburing
 , libuuid
-, llvmPackages
 , meson
 , nasm
 , ncurses
@@ -69,6 +68,8 @@ let
         else
           "--without-fio";
 
+      # Only set crossPrefix if we're actually cross-compiling 
+      # (which we aren't, but let's keep the logic).
       crossPrefix =
         if targetPlatform.config != buildPlatform.config then
           "--crossPrefix=${targetPlatform.config}"
@@ -90,13 +91,13 @@ let
     version = "24.05-${lib.substring 0 7 rev}";
     name = "${pname}-${version}";
   };
+
   drvAttrs = rec {
     pname = spdk.pname;
     version = spdk.version;
 
     src = [
       (fetchFromGitHub {
-        # Note that this would only rebuild if the first 7 chars differ, but in practice should be fine
         name = spdk.name;
         owner = "openebs";
         repo = "spdk";
@@ -113,16 +114,13 @@ let
       cmake
       gcc
       help2man
-      llvmPackages.bintools
-      llvmPackages.clang
-      llvmPackages.libclang
       meson
       ninja
       pkg-config
       procps
       udev
       utillinux
-      (python3.withPackages (ps: with ps; [ pyelftools ]))
+      pkgs.python3Packages.pyelftools
     ] ++ extraBuildInputs;
 
     buildInputs = [
@@ -158,9 +156,7 @@ let
     enableParallelBuilding = true;
     hardeningDisable = [ "all" ];
 
-    #
-    # Phases.
-    #
+    # Our phases
     prePatch = ''
       pushd ..
       chmod -R u+w build_scripts
@@ -181,4 +177,4 @@ let
     '';
   };
 in
-llvmPackages.stdenv.mkDerivation drvAttrs
+pkgs.stdenv.mkDerivation drvAttrs

@@ -5,7 +5,10 @@ on:
     types: ['opened', 'edited', 'reopened', 'synchronize']
 jobs:
   rust-lint:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [github-arm64-2c-8gb, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
