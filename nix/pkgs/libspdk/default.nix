@@ -44,6 +44,7 @@
 , utillinux
 , zlib
 , rdma-core
+, keyutils
 }:
 let
   # Suffix for debug build name.
@@ -85,8 +86,8 @@ let
   # Derivation attributes
   #
   spdk = rec {
-    rev = "50b064f553970b0f352691530e80f19b8432f034";
-    sha256 = "sha256-fim71qqNjGtITeXfR7kWIRpBbI2iF47D0suny3mjcCQ=";
+    rev = "5ad4b3f7da32eb96543bf15df88cfd790dbd5307";
+    sha256 = "sha256-P3/rhhxNuNC3LJK7em+v5ES4aZsx0LSTHf8HcCaWk5Y=";
     pname = "libspdk${nameSuffix}";
     version = "24.05-${lib.substring 0 7 rev}";
     name = "${pname}-${version}";
@@ -143,6 +144,7 @@ let
       numactl
       openssl
       rdma-core
+      keyutils
       zlib
     ] ++ extraBuildInputs;
 

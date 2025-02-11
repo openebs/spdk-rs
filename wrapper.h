@@ -45,6 +45,8 @@
 #include <thread/thread_internal.h>
 #include <bdev/bdev_internal.h>
 #include <blob/blobstore.h>
+#include <spdk/accel_module.h>
+#include <accel/dpdk_cryptodev/accel_dpdk_cryptodev.h>
 
 #include "helpers/logwrapper.h"
 #include "helpers/nvme_helper.h"
