@@ -17,7 +17,7 @@ use crate::{
         spdk_bdev_get_aliases, spdk_bdev_get_buf_align, spdk_bdev_get_by_name,
         spdk_bdev_has_write_cache, spdk_bdev_io_type_supported, spdk_bdev_module,
         spdk_bdev_module_release_bdev, spdk_bdev_register, spdk_bdev_unregister,
-        SPDK_BDEV_CLAIM_EXCL_WRITE, SPDK_BDEV_CLAIM_NONE,
+        vbdev_crypto_disk_get_base_bdev, SPDK_BDEV_CLAIM_EXCL_WRITE, SPDK_BDEV_CLAIM_NONE,
     },
     BdevIo, BdevModule, BdevOps, IoChannel, IoDevice, IoType, Thread, Uuid,
 };
@@ -69,6 +69,20 @@ where
     /// Returns the name of the module for thos Bdev.
     pub fn module_name(&self) -> &str {
         unsafe { (*self.as_inner_ref().module).name.as_str() }
+    }
+
+    /// Returns the bdev handle which is the base of `self` bdev here.
+    /// e.g self could be a crypto vbdev and base an aio bdev.
+    /// XXX: This must be called only by crypto vbdev today.
+    pub fn crypto_base_bdev(&self) -> Option<Self> {
+        let p = unsafe {
+            vbdev_crypto_disk_get_base_bdev(self.name().as_ptr() as *mut std::os::raw::c_char)
+        };
+        if p.is_null() {
+            None
+        } else {
+            Some(Self::from_inner_ptr(p))
+        }
     }
 
     /// TODO

@@ -298,7 +298,7 @@ fn main() {
         .allowlist_function(".*.aio.*")
         .allowlist_function("^accel.*")
         .allowlist_function(".*.crypto_disk.*")
-        .allowlist_function(".*.crypto_opts")
+        .allowlist_function(".*.crypto_opts.*")
         .allowlist_function(".*.iscsi.*")
         .allowlist_function(".*.lock_lba_range")
         .allowlist_function(".*.lvol.*")
