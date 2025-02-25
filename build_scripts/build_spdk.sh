@@ -262,7 +262,7 @@ function cmd_configure() {
     msg_info "Target platform: $TARGET_PLATFORM"
     case $TARGET_PLATFORM in
         "x86_64-unknown-linux-gnu")
-            CONFIGURE_ARGS+=("--target-arch=nehalem" "--without-crypto")
+            CONFIGURE_ARGS+=("--target-arch=nehalem" "--with-crypto")
             ;;
         "aarch64-unknown-linux-gnu")
             CONFIGURE_ARGS+=(" --target-arch=armv8-a+crypto")

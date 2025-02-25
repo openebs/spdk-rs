@@ -150,6 +150,8 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
     spdk_lib.mark_system("uuid");
     spdk_lib.mark_system("rdmacm");
     spdk_lib.mark_system("ibverbs");
+    spdk_lib.mark_system("mlx5");
+    spdk_lib.mark_system("keyutils");
 
     spdk_lib.set_static_search(true);
 
@@ -294,7 +296,9 @@ fn main() {
         .header("wrapper.h")
         .formatter(bindgen::Formatter::Rustfmt)
         .allowlist_function(".*.aio.*")
+        .allowlist_function("^accel.*")
         .allowlist_function(".*.crypto_disk.*")
+        .allowlist_function(".*.crypto_opts.*")
         .allowlist_function(".*.iscsi.*")
         .allowlist_function(".*.lock_lba_range")
         .allowlist_function(".*.lvol.*")
