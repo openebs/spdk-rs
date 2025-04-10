@@ -1,4 +1,8 @@
-use std::{ffi::CString, mem::zeroed, os::raw::c_char};
+use std::{
+    ffi::{CStr, CString},
+    mem::zeroed,
+    os::raw::c_char,
+};
 
 use spdk_rs::libspdk::{
     spdk_env_fini, spdk_env_init, spdk_env_opts, spdk_env_opts_init, spdk_nvme_ctrlr,
@@ -31,14 +35,9 @@ extern "C" fn probe_cb(
     _trid: *const spdk_nvme_transport_id,
     _opts: *mut spdk_nvme_ctrlr_opts,
 ) -> bool {
-    // FIXME: when this is drop, it will be freed but got invalid pointer
-    // free(): invalid pointer
-
-    // println!("Attaching to {}", unsafe {
-    //     CString::from_raw((*_trid).traddr.as_ptr() as *mut c_char)
-    //         .to_str()
-    //         .unwrap()
-    // });
+    println!("Attaching to {}", unsafe {
+        CStr::from_ptr((*_trid).traddr.as_ptr()).to_str().unwrap()
+    });
 
     true
 }
@@ -49,14 +48,9 @@ extern "C" fn attach_cb(
     ctrlr: *mut spdk_nvme_ctrlr,
     _opts: *const spdk_nvme_ctrlr_opts,
 ) {
-    // FIXME: when this is drop, it will be freed but got invalid pointer
-    // free(): invalid pointer
-
-    // println!("Attached to {}", unsafe {
-    // CString::from_raw((*_trid).traddr.as_ptr() as *mut c_char)
-    // .to_str()
-    // .unwrap()
-    // });
+    println!("Attached to {}", unsafe {
+        CStr::from_ptr((*_trid).traddr.as_ptr()).to_str().unwrap()
+    });
 
     let mut ns: *mut spdk_nvme_ns;
     let entry: ctrlr_entry = ctrlr_entry {
@@ -136,17 +130,12 @@ fn main() {
 
         println!("Found {} controllers", G_CONTROLLERS.len());
 
-        // struct spdk_nvme_detach_ctx *detach_ctx = NULL;
         let mut detach_ctx: *mut spdk_nvme_detach_ctx = std::ptr::null_mut();
-        // Iterate over all controllers
         for entry in G_CONTROLLERS.iter() {
             spdk_nvme_detach_async(entry.ctrlr, &mut detach_ctx);
         }
 
-        if detach_ctx.is_null() {
-            println!("detach_ctx is null");
-        } else {
-            println!("detach_ctx is not null");
+        if !detach_ctx.is_null() {
             spdk_nvme_detach_poll(detach_ctx);
         }
         spdk_env_fini();
