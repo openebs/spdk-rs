@@ -3,12 +3,11 @@ use std::{ffi::CString, mem::zeroed, os::raw::c_char};
 use spdk_rs::libspdk::{
     spdk_env_fini, spdk_env_init, spdk_env_opts, spdk_env_opts_init, spdk_nvme_ctrlr,
     spdk_nvme_ctrlr_get_first_active_ns, spdk_nvme_ctrlr_get_next_active_ns,
-    spdk_nvme_ctrlr_get_ns, spdk_nvme_ctrlr_opts, spdk_nvme_ns, spdk_nvme_ns_is_active,
-    spdk_nvme_probe, spdk_nvme_qpair, spdk_nvme_transport_id, spdk_nvme_trid_populate_transport,
-    SPDK_NVME_TRANSPORT_PCIE,
+    spdk_nvme_ctrlr_get_ns, spdk_nvme_ctrlr_opts, spdk_nvme_detach_async, spdk_nvme_detach_ctx,
+    spdk_nvme_detach_poll, spdk_nvme_ns, spdk_nvme_ns_is_active, spdk_nvme_probe, spdk_nvme_qpair,
+    spdk_nvme_transport_id, spdk_nvme_trid_populate_transport, SPDK_NVME_TRANSPORT_PCIE,
 };
-use std::collections::VecDeque;
-use std::ptr::addr_of_mut;
+use std::{collections::VecDeque, ptr::addr_of_mut};
 
 #[allow(non_camel_case_types)]
 struct ctrlr_entry {
@@ -17,6 +16,7 @@ struct ctrlr_entry {
 }
 
 #[allow(non_camel_case_types)]
+#[allow(dead_code)]
 struct ns_entry {
     ctrlr: *mut spdk_nvme_ctrlr,
     ns: *mut spdk_nvme_ns,
@@ -31,11 +31,14 @@ extern "C" fn probe_cb(
     _trid: *const spdk_nvme_transport_id,
     _opts: *mut spdk_nvme_ctrlr_opts,
 ) -> bool {
-    println!("Attaching to {}", unsafe {
-        CString::from_raw((*_trid).traddr.as_ptr() as *mut c_char)
-            .to_str()
-            .unwrap()
-    });
+    // FIXME: when this is drop, it will be freed but got invalid pointer
+    // free(): invalid pointer
+
+    // println!("Attaching to {}", unsafe {
+    //     CString::from_raw((*_trid).traddr.as_ptr() as *mut c_char)
+    //         .to_str()
+    //         .unwrap()
+    // });
 
     true
 }
@@ -46,11 +49,14 @@ extern "C" fn attach_cb(
     ctrlr: *mut spdk_nvme_ctrlr,
     _opts: *const spdk_nvme_ctrlr_opts,
 ) {
-    println!("Attached to {}", unsafe {
-        CString::from_raw((*_trid).traddr.as_ptr() as *mut c_char)
-            .to_str()
-            .unwrap()
-    });
+    // FIXME: when this is drop, it will be freed but got invalid pointer
+    // free(): invalid pointer
+
+    // println!("Attached to {}", unsafe {
+    // CString::from_raw((*_trid).traddr.as_ptr() as *mut c_char)
+    // .to_str()
+    // .unwrap()
+    // });
 
     let mut ns: *mut spdk_nvme_ns;
     let entry: ctrlr_entry = ctrlr_entry {
@@ -109,7 +115,7 @@ fn main() {
         let mut opts: spdk_env_opts = zeroed();
         spdk_env_opts_init(&mut opts as *mut _);
 
-        let rc = spdk_env_init(&mut opts);
+        let rc = spdk_env_init(&opts);
         println!("spdk_env_init rc: {}", rc);
         if rc < 0 {
             panic!("spdk_env_init failed");
@@ -129,6 +135,20 @@ fn main() {
         }
 
         println!("Found {} controllers", G_CONTROLLERS.len());
+
+        // struct spdk_nvme_detach_ctx *detach_ctx = NULL;
+        let mut detach_ctx: *mut spdk_nvme_detach_ctx = std::ptr::null_mut();
+        // Iterate over all controllers
+        for entry in G_CONTROLLERS.iter() {
+            spdk_nvme_detach_async(entry.ctrlr, &mut detach_ctx);
+        }
+
+        if detach_ctx.is_null() {
+            println!("detach_ctx is null");
+        } else {
+            println!("detach_ctx is not null");
+            spdk_nvme_detach_poll(detach_ctx);
+        }
         spdk_env_fini();
     }
 }
