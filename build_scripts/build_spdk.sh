@@ -50,6 +50,7 @@ CONFIGURE_ARGS=(
     "--disable-unit-tests"
     "--disable-tests"
     "--with-rdma"
+    "--with-crypto"
 )
 
 MAKE_DEFAULT_ARGS="-j"                              # Default args for invoking GNU make
@@ -262,10 +263,10 @@ function cmd_configure() {
     msg_info "Target platform: $TARGET_PLATFORM"
     case $TARGET_PLATFORM in
         "x86_64-unknown-linux-gnu")
-            CONFIGURE_ARGS+=("--target-arch=nehalem" "--with-crypto")
+            CONFIGURE_ARGS+=("--target-arch=nehalem")
             ;;
         "aarch64-unknown-linux-gnu")
-            CONFIGURE_ARGS+=(" --target-arch=armv8-a+crypto")
+            CONFIGURE_ARGS+=("--target-arch=armv8-a+crypto")
             ;;
     esac
 
