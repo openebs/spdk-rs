@@ -1,6 +1,10 @@
 { pkgs }:
 let
   usePreCommit = builtins.getEnv "IN_NIX_SHELL" == "impure" && builtins.getEnv "CI" != "1";
+  pre-commit = pkgs.runCommand "pre-commit" { } ''
+    mkdir -p $out/bin
+    cp ${pkgs.pre-commit}/bin/pre-commit $out/bin/pre-commit
+  '';
 in
 {
   buildInputs = with pkgs; [
