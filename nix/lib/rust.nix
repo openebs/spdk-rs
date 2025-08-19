@@ -2,8 +2,8 @@
 let
   pkgs =
     import sources.nixpkgs { overlays = [ (import sources.rust-overlay) ]; };
-  nightly_version = "2024-10-30";
-  stable_version = "1.82.0";
+  nightly_version = "2025-06-26";
+  stable_version = "1.88.0";
 in
 with pkgs; rec  {
   nightly = rust-bin.nightly.${nightly_version}.default;

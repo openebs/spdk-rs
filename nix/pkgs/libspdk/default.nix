@@ -69,7 +69,7 @@ let
         else
           "--without-fio";
 
-      # Only set crossPrefix if we're actually cross-compiling 
+      # Only set crossPrefix if we're actually cross-compiling
       # (which we aren't, but let's keep the logic).
       crossPrefix =
         if targetPlatform.config != buildPlatform.config then
@@ -157,6 +157,7 @@ let
     dontStrip = build-type == "debug";
     enableParallelBuilding = true;
     hardeningDisable = [ "all" ];
+    dontCheckForBrokenSymlinks = true;
 
     # Our phases
     prePatch = ''
