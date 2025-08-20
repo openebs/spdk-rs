@@ -43,7 +43,7 @@ let
     # Stable Rust channel configuration.
     stable = {
       buildInputs = buildInputs ++ [
-        rustChannels.stable
+        (rustChannels.stable.override ({ extensions = [ "rust-src" ]; }))
       ];
 
       inherit shellEnv;
@@ -59,7 +59,7 @@ let
     # Nightly Rust channel configuration.
     nightly = {
       buildInputs = buildInputs ++ [
-        rustChannels.nightly
+        (rustChannels.nightly.override ({ extensions = [ "rust-src" ]; }))
       ];
 
       inherit shellEnv;
@@ -76,7 +76,7 @@ let
     # Rust's ASAN requires nightly Rust.
     asan = {
       buildInputs = buildInputs ++ [
-        rustChannels.nightly
+        (rustChannels.nightly.override ({ extensions = [ "rust-src" ]; }))
       ];
 
       shellEnv = shellEnv // {

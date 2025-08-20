@@ -7,9 +7,7 @@ let
   '';
 in
 {
-  buildInputs = with pkgs; [
-    pre-commit
-  ];
+  buildInputs = pkgs.lib.optional (usePreCommit) pre-commit;
 
   shellHook = ''
     if [ "${toString usePreCommit}" = "1" ]; then
