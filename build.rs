@@ -130,7 +130,6 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
     spdk_lib.exclude_lib("spdk_bdev_blobfs");
     spdk_lib.exclude_lib("spdk_bdev_gpt");
     spdk_lib.exclude_lib("spdk_bdev_passthru");
-    spdk_lib.exclude_lib("spdk_bdev_raid");
     spdk_lib.exclude_lib("spdk_bdev_split");
     spdk_lib.exclude_lib("spdk_event_nvmf");
     spdk_lib.exclude_lib("spdk_sock_uring");
@@ -307,6 +306,7 @@ fn main() {
         .allowlist_function("^iscsi.*")
         .allowlist_function("^spdk.*")
         .allowlist_function("^.*malloc_disk")
+        .allowlist_function("^raid_bdev.*")
         .allowlist_function("^bdev.*")
         .allowlist_function("^nbd_.*")
         .allowlist_function("^vbdev_.*")
