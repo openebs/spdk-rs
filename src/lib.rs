@@ -10,6 +10,7 @@
     non_upper_case_globals,
     unknown_lints,
     unused,
+    unnecessary_transmutes,
     clippy::upper_case_acronyms
 )]
 

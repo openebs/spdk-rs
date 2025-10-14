@@ -8,7 +8,7 @@ use crate::{
     ffihelper::{cb_arg, done_errno_cb, errno_error, errno_result_from_i32, ErrnoResult},
     libspdk::{
         bdev_reset_device_stat, spdk_bdev, spdk_bdev_get_device_stat, spdk_bdev_io_stat,
-        spdk_bdev_unregister, SPDK_BDEV_RESET_STAT_ALL,
+        spdk_bdev_unregister, SPDK_BDEV_RESET_STAT_ALL, SPDK_BDEV_RESET_STAT_NONE,
     },
     Bdev, BdevOps,
 };
@@ -86,6 +86,7 @@ where
             spdk_bdev_get_device_stat(
                 self.as_inner_ptr(),
                 &mut stat as *mut _,
+                SPDK_BDEV_RESET_STAT_NONE,
                 Some(inner_stats_callback),
                 cb_arg(s),
             );

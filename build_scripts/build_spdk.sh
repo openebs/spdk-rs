@@ -11,7 +11,7 @@ LOG_DIR=$(realpath "$SCRIPT_DIR/../build_logs")
 export LOG_DIR
 
 export SPDK_ROOT_DIR=${SPDK_ROOT_DIR:-""}           # Root of SPDK sources.
-export SPDK_VERSION="24.05"                         # SPDK version (currently, informative only).
+export SPDK_VERSION="25.05"                         # SPDK version (currently, informative only).
 
 export BUILD_TYPE="debug"
 export TARGET_PLATFORM="x86_64-unknown-linux-gnu"
@@ -454,6 +454,30 @@ function cmd_install() {
     return 0
 }
 
+# Patch isa-l-crypto configure.ac to fix vpcompressb operand syntax leading to
+# incorrect nasm detection. This is needed because SPDK's submodule isa-l-crypto
+# isn't yet tagged with the fix. The fix is here:
+# https://github.com/intel/isa-l_crypto/commit/0850c01cc03e45f77d5883372dd6be983ba163ce
+# The ticket to request tagging:
+# https://github.com/intel/isa-l_crypto/issues/163
+# Issue created on spdk:
+# https://github.com/spdk/spdk/issues/3761
+function patch_isa_l_crypto_configure_ac() {
+    local target="$SPDK_ROOT_DIR/isa-l-crypto/configure.ac"
+
+    if [[ ! -f "$target" ]]; then
+        msg_warn "File not found, skipping isa-l-crypto configure.ac patch: $target"
+        return 0
+    fi
+
+    # Replace the operand syntax in vpcompressb test
+    sed -i -e 's/vpcompressb zmm0, k1, zmm1;/vpcompressb zmm0 {k1}, zmm1;/' "$target"
+
+    msg_info "Patched isa-l-crypto configure.ac: $target"
+}
+
+export -f patch_isa_l_crypto_configure_ac
+
 CMD=""
 while [[ $# -gt 0 ]]
 do
@@ -559,6 +583,11 @@ then
 fi
 silent_popd
 msg_info "SPDK directory: $SPDK_ROOT_DIR"
+
+if [[ "$CMD" == "configure" ]]
+then
+    patch_isa_l_crypto_configure_ac
+fi
 
 # Validate build type.
 case $BUILD_TYPE in
