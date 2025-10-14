@@ -115,10 +115,9 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
     spdk_lib.add_inc(spdk_path.join("include"))?;
     spdk_lib.add_inc(spdk_path.join("include/spdk_internal"))?;
 
-    spdk_lib.add_inc_alt(
-        spdk_path.join("include/spdk/module"),
-        spdk_path.join("module"),
-    )?;
+    //spdk_lib.add_inc(spdk_path.join("module"))?;
+    spdk_lib.add_inc(spdk_path.join("include/spdk/module"))?;
+
     spdk_lib.add_inc_alt(spdk_path.join("include/spdk/lib"), spdk_path.join("lib"))?;
     spdk_lib.add_inc_alt(
         spdk_path.join("include/spdk/lib/ftl"),

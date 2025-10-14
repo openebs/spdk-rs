@@ -4,8 +4,9 @@ use crate::{
     bdev::Container,
     ffihelper::IntoCString,
     libspdk::{
-        spdk_bdev, spdk_bdev_fn_table, spdk_bdev_io, spdk_bdev_io_type, spdk_get_io_channel,
-        spdk_io_channel, spdk_json_write_ctx, SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE,
+        __BindgenBitfieldUnit, spdk_bdev, spdk_bdev__bindgen_ty_1, spdk_bdev_fn_table,
+        spdk_bdev_io, spdk_bdev_io_type, spdk_get_io_channel, spdk_io_channel, spdk_json_write_ctx,
+        SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE,
     },
     Bdev, BdevIo, BdevModule, BdevOps, IoChannel, IoDevice, IoType, JsonWriteContext, Uuid,
 };
@@ -187,6 +188,7 @@ where
                 md_len: Default::default(),
                 md_interleave: Default::default(),
                 dif_type: Default::default(),
+                dif_pi_format: Default::default(),
                 dif_is_head_of_md: Default::default(),
                 dif_check_flags: Default::default(),
                 zoned: Default::default(),
@@ -197,7 +199,14 @@ where
                 optimal_open_zones: Default::default(),
                 media_events: Default::default(),
                 ctratt: unsafe { zeroed() },
+                // setting nsid 1 as that's the only namespace we use today.
+                // can't do default() as that sets it to 0 which is invalid
+                nsid: 1,
                 reset_io_drain_timeout: SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE as u16,
+                numa: spdk_bdev__bindgen_ty_1 {
+                    _bitfield_align_1: [0; 0],
+                    _bitfield_1: spdk_bdev__bindgen_ty_1::new_bitfield_1(0, 0),
+                },
                 module: self.module.as_ptr(),
                 fn_table: null_mut::<spdk_bdev_fn_table>(),
                 internal: unsafe { zeroed() },
