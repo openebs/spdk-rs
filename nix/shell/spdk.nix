@@ -76,7 +76,7 @@ let
     none = {
       drv = null;
 
-      buildInputs = with pkgs; libspdk-dev.nativeBuildInputs ++ libspdk-dev.buildInputs;
+      buildInputs = with pkgs; libspdk-dev.nativeBuildInputs ++ libspdk-dev.buildInputs ++ libspdk-dev.devBuildInputs;
 
       shellEnv = {
         CFLAGS = cflagsValue;

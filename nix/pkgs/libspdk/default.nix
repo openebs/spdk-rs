@@ -45,6 +45,7 @@
 , zlib
 , rdma-core
 , keyutils
+, astyle
 }:
 let
   # Suffix for debug build name.
@@ -110,6 +111,8 @@ let
     ];
 
     sourceRoot = spdk.name;
+
+    devBuildInputs = [ astyle pkgs.python3Packages.tabulate pkgs.python3Packages.jinja2 ];
 
     nativeBuildInputs = [
       cmake
