@@ -1,6 +1,7 @@
 {}:
 final: prev: rec {
   fio = prev.callPackage ./pkgs/fio { };
+  astyle = prev.callPackage ./pkgs/astyle { };
   libnvme = prev.callPackage ./pkgs/libnvme { };
   nvme-cli = prev.callPackage ./pkgs/nvme-cli { };
   libspdk = prev.callPackage ./pkgs/libspdk { with-fio = false; build-type = "release"; };

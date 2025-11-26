@@ -69,6 +69,7 @@ Options:
     --with-fio <FIO>            Use given FIO path
     --without-fio               Build without FIO
     --with-fio-dst <PATH>       FIO install destination
+    --with-unit-tests           Enables the unit tests
     --log <no|tee*|silent>      Output logging options
     --no-log                    Same as "--log no"
     -n, --dry-run               Dry run
@@ -245,6 +246,11 @@ function detect_fio() {
     #    msg_warn "No fio include directory found"
     #    WITH_FIO=""
     #fi
+}
+
+function rm_configure_arg() {
+    arg="$1"
+    CONFIGURE_ARGS=($(printf "%s\n" "${CONFIGURE_ARGS[@]}" | grep -v "^$arg$"))
 }
 
 function cmd_configure() {
@@ -513,6 +519,10 @@ do
             msg_info "With FIO install destination: $WITH_FIO_DST"
             shift
             ;;
+        "--with-unit-tests")
+            rm_configure_arg "--disable-unit-tests"
+            msg_info "With unit-tests"
+            ;;
         "--log")
             LOG_MODE=$1
             LOG_MODE_EXPLICIT="yes"
@@ -522,7 +532,7 @@ do
             LOG_MODE="no"
             LOG_MODE_EXPLICIT="yes"
             ;;
-        "-n" | "--dry-run")
+        "-n" | "-d" | "--dry-run")
             DRY_RUN="yes"
             msg_info "Dry run is enabled"
             ;;
