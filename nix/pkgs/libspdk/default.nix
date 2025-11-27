@@ -112,7 +112,7 @@ let
 
     sourceRoot = spdk.name;
 
-    devBuildInputs = [ astyle pkgs.python3Packages.tabulate pkgs.python3Packages.jinja2 ];
+    devBuildInputs = [ astyle pkgs.python3Packages.tabulate pkgs.python3Packages.jinja2 pkgs.nix-prefetch-github ];
 
     nativeBuildInputs = [
       cmake
