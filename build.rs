@@ -115,7 +115,12 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
     spdk_lib.add_inc(spdk_path.join("include"))?;
     spdk_lib.add_inc(spdk_path.join("include/spdk_internal"))?;
 
+    // For nix-builds the end derivation would end up with "include/spdk/module" and the local builds using the local "module"
+    // However on newer spdk, they also start using "include/spdk/module", meaning we can't use its presence as a check
+    // to load alternatively load module.
     spdk_lib.add_inc(spdk_path.join("include/spdk/module"))?;
+    // So for now, simply ignore any module include error.
+    let _ = spdk_lib.add_inc(spdk_path.join("module"));
 
     spdk_lib.add_inc_alt(spdk_path.join("include/spdk/lib"), spdk_path.join("lib"))?;
     spdk_lib.add_inc_alt(
