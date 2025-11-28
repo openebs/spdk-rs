@@ -1,0 +1,78 @@
+name: Code Linter
+
+on:
+  pull_request:
+    types: ['opened', 'edited', 'reopened', 'synchronize']
+  push:
+    branches:
+      - develop
+      - 'release/**'
+
+env:
+  CI: 1
+
+jobs:
+  rust-lint:
+    strategy:
+      matrix:
+        os: [github-arm64-2c-8gb, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - run: |
+          echo "NIX_PATH=nixpkgs=$(jq -r '.nixpkgs.url' nix/sources.json)" >> $GITHUB_ENV
+      - uses: cachix/install-nix-action@v31
+        with:
+          nix_path: ${{ env.NIX_PATH }}
+      - run: nix-build shell.nix
+      - name: cargo-fmt
+        run: nix-shell --pure --run "FMT_OPTS=--check ./scripts/rust-style.sh"
+      - name: cargo-clippy
+        run: nix-shell --pure --run ./scripts/rust-linter.sh
+
+  rust-dev:
+    strategy:
+      matrix:
+        os: [github-arm64-2c-8gb, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - run: |
+          echo "NIX_PATH=nixpkgs=$(jq -r '.nixpkgs.url' nix/sources.json)" >> $GITHUB_ENV
+      - uses: cachix/install-nix-action@v31
+        with:
+          nix_path: ${{ env.NIX_PATH }}
+      - run: |
+          echo "SPDK_REV=$(nix-instantiate --eval -A libspdk.rev | cut -d '"' -f2)" >> $GITHUB_ENV
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          repository: ${{ github.repository_owner }}/spdk
+          path: 'spdk'
+          ref: ${{ env.SPDK_REV }}
+      - run: nix-build shell.nix --argstr spdk-path ./spdk
+      - run: nix-shell --argstr spdk-path spdk --run "./build_scripts/build_spdk.sh configure -t $(uname -m)-unknown-linux-gnu"
+      - run: nix-shell --argstr spdk-path spdk --run "./build_scripts/build_spdk.sh make"
+      - run: nix-shell --argstr spdk-path spdk --run "cargo build --all"
+      # - name: Setup tmate session
+      #   if: ${{ failure() }}
+      #   timeout-minutes: 120
+      #   uses: mxschmitt/action-tmate@v3
+
+  nix-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - run: |
+          echo "NIX_PATH=nixpkgs=$(jq -r '.nixpkgs.url' nix/sources.json)" >> $GITHUB_ENV
+      - uses: cachix/install-nix-action@v31
+        with:
+          nix_path: ${{ env.NIX_PATH }}
+      - name: nix-shell
+        run: nix-shell --pure -p nixpkgs-fmt --run "nixpkgs-fmt --check ."

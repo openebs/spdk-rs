@@ -1,16 +1,14 @@
 name: Lint Commit Messages
+
 on:
   pull_request:
     types: ['opened', 'edited', 'reopened', 'synchronize']
-  push:
-    branches:
-      - staging
 
 jobs:
   commitlint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Install CommitLint and Dependencies

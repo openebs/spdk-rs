@@ -8,7 +8,7 @@ let
   pkgs = import sources.nixpkgs {
     overlays = [
       (_: _: { inherit sources; })
-      (import ./nix/overlay.nix { })
+      (import ./nix/overlay.nix)
     ];
   };
 
