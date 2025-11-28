@@ -1,4 +1,3 @@
-{}:
 final: prev: rec {
   fio = prev.callPackage ./pkgs/fio { };
   astyle = prev.callPackage ./pkgs/astyle { };

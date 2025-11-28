@@ -97,6 +97,7 @@ let
   drvAttrs = rec {
     pname = spdk.pname;
     version = spdk.version;
+    rev = spdk.rev;
 
     src = [
       (fetchFromGitHub {
