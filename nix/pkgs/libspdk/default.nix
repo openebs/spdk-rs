@@ -87,8 +87,8 @@ let
   # Derivation attributes
   #
   spdk = rec {
-    rev = "234212ed0b2eb515b52f48fab291e366f23676f3";
-    sha256 = "sha256-FQz3AjRaLrGKK0wpZldzz2yaGSLM8g4xHRz4BbeY16c=";
+    rev = "fd233103d1a24e18a275159e68922e3d1289c28c";
+    sha256 = "sha256-ebr1C2r/CeNRU9RAIhBN6rdom7LFXkzIvs7l/GyGG70=";
     pname = "libspdk${nameSuffix}";
     version = "25.05-${lib.substring 0 7 rev}";
     name = "${pname}-${version}";
@@ -112,7 +112,7 @@ let
 
     sourceRoot = spdk.name;
 
-    devBuildInputs = [ astyle pkgs.python3Packages.tabulate pkgs.python3Packages.jinja2 ];
+    devBuildInputs = [ astyle pkgs.python3Packages.tabulate pkgs.python3Packages.jinja2 pkgs.nix-prefetch-github ];
 
     nativeBuildInputs = [
       cmake

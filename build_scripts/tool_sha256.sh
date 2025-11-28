@@ -20,18 +20,18 @@ fi
 
 msg_info "Using HEAD git revision: $REV"
 
-CMD="nix-prefetch fetchFromGitHub --owner $OWNER --repo $REPO --fetchSubmodules --rev $REV"
+CMD="nix-prefetch-github --fetch-submodules --rev $REV $OWNER $REPO"
 
 msg_debug "Command to prefetch: $CMD"
 msg_info "Fetching from github ..."
 
 # For low verbosity levels, suppress fetch info printed by nex-prefect.
+OUT=$($CMD)
 if [[ "$VERBOSE" -ge "2" ]]
 then
-    SHA=$($CMD)
-else
-    SHA=$($CMD 2> /dev/null)
+    echo "$OUT"
 fi
+SHA=$(echo "$OUT" | grep '"hash"' | cut -d '"' -f4)
 
 if [[ -z "$SHA" ]]
 then
