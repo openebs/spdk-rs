@@ -25,6 +25,7 @@ pub enum IoType {
     SeekHole = libspdk::SPDK_BDEV_IO_TYPE_SEEK_HOLE,
     SeekData = libspdk::SPDK_BDEV_IO_TYPE_SEEK_DATA,
     Copy = libspdk::SPDK_BDEV_IO_TYPE_COPY,
+    NvmeIovMd = libspdk::SPDK_BDEV_IO_TYPE_NVME_IOV_MD,
     IoNumTypes = libspdk::SPDK_BDEV_NUM_IO_TYPES,
 }
 
