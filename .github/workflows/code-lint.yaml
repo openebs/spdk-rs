@@ -57,7 +57,10 @@ jobs:
       - run: nix-build shell.nix --argstr spdk-path ./spdk
       - run: nix-shell --argstr spdk-path spdk --run "./build_scripts/build_spdk.sh configure -t $(uname -m)-unknown-linux-gnu"
       - run: nix-shell --argstr spdk-path spdk --run "./build_scripts/build_spdk.sh make"
-      - run: nix-shell --argstr spdk-path spdk --run "cargo build --all"
+      - run: nix-shell --argstr spdk-path spdk --run "cargo build --all --examples"
+      - run: sudo sysctl -w vm.nr_hugepages=512
+      - run: sudo -E ./target/debug/examples/hello_world
+        if: ${{ matrix.os != 'github-arm64-2c-8gb' }}
       # - name: Setup tmate session
       #   if: ${{ failure() }}
       #   timeout-minutes: 120
