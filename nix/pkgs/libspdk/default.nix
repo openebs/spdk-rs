@@ -48,6 +48,11 @@
 , astyle
 }:
 let
+  nix-prefetch-github = pkgs.runCommand "nix-prefetch-github" { } ''
+    mkdir -p $out/bin
+    cp ${pkgs.nix-prefetch-github}/bin/nix-prefetch-github $out/bin/nix-prefetch-github
+  '';
+
   # Suffix for debug build name.
   nameSuffix = if build-type == "debug" then "-dev" else "";
 
@@ -113,7 +118,7 @@ let
 
     sourceRoot = spdk.name;
 
-    devBuildInputs = [ astyle pkgs.python3Packages.tabulate pkgs.python3Packages.jinja2 pkgs.nix-prefetch-github ];
+    devBuildInputs = [ astyle pkgs.python3Packages.tabulate pkgs.python3Packages.jinja2 nix-prefetch-github ];
 
     nativeBuildInputs = [
       cmake
