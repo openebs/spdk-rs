@@ -28,6 +28,6 @@ repos:
         name: Commit Lint
         description: Runs commitlint against the commit message.
         language: system
-        entry: bash -c 'nix-shell --pure --run "cat $1 | grep -v '^#' | commitlint"'
+        entry: bash -c 'nix-shell --pure --argstr spdk none --run "cat $1 | grep -v '^#' | commitlint"'
         args: [$1]
         stages: [commit-msg]
