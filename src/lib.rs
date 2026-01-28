@@ -52,7 +52,7 @@ mod uuid;
 
 pub use crate::{
     bdev::Bdev,
-    bdev_async::{BdevAsyncCallContext, BdevStats},
+    bdev_async::{BdevAsyncCallContext, BdevStats, BdevStatsResetMode},
     bdev_builder::BdevBuilder,
     bdev_desc::{BdevDesc, BdevDescError, BdevEvent, LbaRange, LbaRangeLock},
     bdev_io::BdevIo,

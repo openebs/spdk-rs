@@ -8,13 +8,29 @@ use crate::{
     ffihelper::{cb_arg, done_errno_cb, errno_error, errno_result_from_i32, ErrnoResult},
     libspdk::{
         bdev_reset_device_stat, spdk_bdev, spdk_bdev_get_device_stat, spdk_bdev_io_stat,
-        spdk_bdev_unregister, SPDK_BDEV_RESET_STAT_ALL, SPDK_BDEV_RESET_STAT_NONE,
+        spdk_bdev_unregister,
     },
     Bdev, BdevOps,
 };
 
 /// TODO
 pub type BdevStats = spdk_bdev_io_stat;
+
+/// Bdev Stat reset mode.
+pub enum BdevStatsResetMode {
+    All,
+    MaxMin,
+    Errors,
+}
+impl From<BdevStatsResetMode> for crate::libspdk::spdk_bdev_reset_stat_mode {
+    fn from(value: BdevStatsResetMode) -> Self {
+        match value {
+            BdevStatsResetMode::All => crate::libspdk::SPDK_BDEV_RESET_STAT_ALL,
+            BdevStatsResetMode::MaxMin => crate::libspdk::SPDK_BDEV_RESET_STAT_MAXMIN,
+            BdevStatsResetMode::Errors => crate::libspdk::SPDK_BDEV_RESET_STAT_ERROR,
+        }
+    }
+}
 
 /// TODO
 pub struct BdevAsyncCallContext {
@@ -86,7 +102,7 @@ where
             spdk_bdev_get_device_stat(
                 self.as_inner_ptr(),
                 &mut stat as *mut _,
-                SPDK_BDEV_RESET_STAT_NONE,
+                crate::libspdk::SPDK_BDEV_RESET_STAT_NONE,
                 Some(inner_stats_callback),
                 cb_arg(s),
             );
@@ -98,14 +114,14 @@ where
 
     /// This function resets all stat counters for a given Bdev.
     /// Returns Errno in case of an error.
-    pub async fn stats_reset_async(&self) -> ErrnoResult<()> {
+    pub async fn stats_reset_async(&self, reset_mode: BdevStatsResetMode) -> ErrnoResult<()> {
         let (s, r) = oneshot::channel::<i32>();
         // This will iterate over I/O channels to reset IOStats and call async
         // callback when done.
         unsafe {
             bdev_reset_device_stat(
                 self.as_inner_ptr(),
-                SPDK_BDEV_RESET_STAT_ALL,
+                reset_mode.into(),
                 Some(inner_stats_reset_callback),
                 cb_arg(s),
             );
