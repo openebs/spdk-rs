@@ -20,6 +20,14 @@ pub use spdk_nvme_media_error_status_code::*;
 pub use spdk_nvme_path_status_code::*;
 pub use spdk_nvme_status_code_type::*;
 
+/// SPDK Bdev IO Error stats.
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+pub struct spdk_bdev_io_error_stat {
+    /// A count of error status, indexed by the spdk status codes.
+    pub error_status: [u32; -SPDK_MIN_BDEV_IO_STATUS as usize],
+}
+
 /// Initializes a size field of a struct with struct's size_of.
 /// Other fields must be initialized explicitly.
 ///

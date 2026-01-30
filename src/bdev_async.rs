@@ -1,5 +1,5 @@
-///! Asynchronous methods of `Bdev<>` wrapper.
-use std::os::raw::c_void;
+//! Asynchronous methods of `Bdev<>` wrapper.
+use std::{ops::Deref, os::raw::c_void};
 
 use futures::channel::{oneshot, oneshot::Canceled};
 
@@ -7,14 +7,62 @@ use crate::{
     error::{SpdkError::BdevUnregisterFailed, SpdkResult},
     ffihelper::{cb_arg, done_errno_cb, errno_error, errno_result_from_i32, ErrnoResult},
     libspdk::{
-        bdev_reset_device_stat, spdk_bdev, spdk_bdev_get_device_stat, spdk_bdev_io_stat,
-        spdk_bdev_unregister, SPDK_BDEV_RESET_STAT_ALL, SPDK_BDEV_RESET_STAT_NONE,
+        bdev_reset_device_stat, spdk_bdev, spdk_bdev_get_device_stat, spdk_bdev_io_error_stat,
+        spdk_bdev_io_stat, spdk_bdev_unregister,
     },
     Bdev, BdevOps,
 };
 
-/// TODO
-pub type BdevStats = spdk_bdev_io_stat;
+/// Wrapper for [`spdk_bdev_io_error_stat`].
+pub type BdevErrorStats = Box<spdk_bdev_io_error_stat>;
+
+/// Wrapper for [`spdk_bdev_io_stat`].
+/// # Safety
+/// Don't attempt to copy and rebox the error stats point without ensuring it's erased first.
+/// This can be done via [`Self::take_error_stats`].
+pub struct BdevStats(spdk_bdev_io_stat);
+impl Deref for BdevStats {
+    type Target = spdk_bdev_io_stat;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl Drop for BdevStats {
+    fn drop(&mut self) {
+        if !self.0.io_error.is_null() {
+            unsafe {
+                drop(Box::from_raw(self.0.io_error));
+            }
+        }
+    }
+}
+impl BdevStats {
+    /// Take the errors stats [`spdk_bdev_io_error_stat`] from the total stats.
+    pub fn take_error_stats(&mut self) -> Option<BdevErrorStats> {
+        if self.0.io_error.is_null() {
+            return None;
+        }
+        let errors = self.io_error;
+        self.0.io_error = std::ptr::null_mut();
+        Some(unsafe { Box::from_raw(errors) })
+    }
+}
+
+/// Bdev Stat reset mode.
+pub enum BdevStatsResetMode {
+    All,
+    MaxMin,
+    Errors,
+}
+impl From<BdevStatsResetMode> for crate::libspdk::spdk_bdev_reset_stat_mode {
+    fn from(value: BdevStatsResetMode) -> Self {
+        match value {
+            BdevStatsResetMode::All => crate::libspdk::SPDK_BDEV_RESET_STAT_ALL,
+            BdevStatsResetMode::MaxMin => crate::libspdk::SPDK_BDEV_RESET_STAT_MAXMIN,
+            BdevStatsResetMode::Errors => crate::libspdk::SPDK_BDEV_RESET_STAT_ERROR,
+        }
+    }
+}
 
 /// TODO
 pub struct BdevAsyncCallContext {
@@ -76,8 +124,15 @@ where
     }
 
     /// Get bdev IOStats or errno value in case of an error.
-    pub async fn stats_async(&self) -> ErrnoResult<BdevStats> {
+    pub async fn stats_async(&self, errors: bool) -> ErrnoResult<BdevStats> {
         let mut stat: spdk_bdev_io_stat = unsafe { std::mem::zeroed() };
+        if errors {
+            let io_err = Box::new(spdk_bdev_io_error_stat::default());
+            unsafe {
+                stat.io_error = Box::into_raw(io_err);
+            }
+        }
+
         let (s, r) = oneshot::channel::<i32>();
 
         // This will iterate over I/O channels and call async callback when
@@ -86,26 +141,26 @@ where
             spdk_bdev_get_device_stat(
                 self.as_inner_ptr(),
                 &mut stat as *mut _,
-                SPDK_BDEV_RESET_STAT_NONE,
+                crate::libspdk::SPDK_BDEV_RESET_STAT_NONE,
                 Some(inner_stats_callback),
                 cb_arg(s),
             );
         }
 
         let errno = r.await.expect("Cancellation is not supported");
-        errno_result_from_i32(stat, errno)
+        errno_result_from_i32(BdevStats(stat), errno)
     }
 
     /// This function resets all stat counters for a given Bdev.
     /// Returns Errno in case of an error.
-    pub async fn stats_reset_async(&self) -> ErrnoResult<()> {
+    pub async fn stats_reset_async(&self, reset_mode: BdevStatsResetMode) -> ErrnoResult<()> {
         let (s, r) = oneshot::channel::<i32>();
         // This will iterate over I/O channels to reset IOStats and call async
         // callback when done.
         unsafe {
             bdev_reset_device_stat(
                 self.as_inner_ptr(),
-                SPDK_BDEV_RESET_STAT_ALL,
+                reset_mode.into(),
                 Some(inner_stats_reset_callback),
                 cb_arg(s),
             );
