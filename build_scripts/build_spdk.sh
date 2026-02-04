@@ -70,6 +70,7 @@ Options:
     --without-fio               Build without FIO
     --with-fio-dst <PATH>       FIO install destination
     --with-unit-tests           Enables the unit tests
+    --with-usdt                 Build with userspace DTrace probes enabled
     --log <no|tee*|silent>      Output logging options
     --no-log                    Same as "--log no"
     -n, --dry-run               Dry run
@@ -522,6 +523,10 @@ do
         "--with-unit-tests")
             rm_configure_arg "--disable-unit-tests"
             msg_info "With unit-tests"
+            ;;
+        "--with-usdt")
+            CONFIGURE_ARGS+=("--with-usdt")
+            msg_info "With userspace DTrace probes enabled"
             ;;
         "--log")
             LOG_MODE=$1

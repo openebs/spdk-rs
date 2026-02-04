@@ -118,7 +118,7 @@ let
 
     sourceRoot = spdk.name;
 
-    devBuildInputs = with pkgs; [ astyle python3Packages.tabulate python3Packages.jinja2 nix-prefetch-github valgrind ];
+    devBuildInputs = with pkgs; [ astyle python3Packages.tabulate python3Packages.jinja2 nix-prefetch-github valgrind libsystemtap python3Packages.ijson python3Packages.magic ];
 
     nativeBuildInputs = [
       cmake
