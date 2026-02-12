@@ -79,3 +79,15 @@ jobs:
           nix_path: ${{ env.NIX_PATH }}
       - name: nix-shell
         run: nix-shell --pure -p nixpkgs-fmt --run "nixpkgs-fmt --check ."
+
+  code-lint:
+    if: always()
+    needs:
+      - rust-lint
+      - rust-dev
+      - nix-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: re-actors/alls-green@release/v1
+        with:
+          jobs: ${{ toJSON(needs) }}
