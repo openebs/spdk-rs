@@ -42,7 +42,7 @@ where
     interval: u64,
     data: T,
     poll_fn: Box<dyn FnMut(&T) -> i32 + 'a>,
-    thread: Option<Thread>,
+    thread: Option<PollerThread>,
     lock: ReentrantMutex<()>,
 }
 
@@ -57,12 +57,7 @@ where
             .field("name", &self.dbg_name())
             .field("state", &self.state)
             .field("interval_us", &self.interval)
-            .field(
-                "thread",
-                &self
-                    .thread
-                    .map_or_else(|| "<none>".to_string(), |t| t.name().to_string()),
-            )
+            .field("thread", &self.thread_name())
             .finish()
     }
 }
@@ -90,10 +85,21 @@ where
         matches!(self.state, PollerState::Running | PollerState::Waiting)
     }
 
+    fn thread_name(&self) -> &str {
+        match &self.thread {
+            None => "<none>",
+            Some(PollerThread::Current) => "<current>",
+            Some(PollerThread::Owned(th)) | Some(PollerThread::Shared(th)) => th.name(),
+        }
+    }
+    fn thread_inner(&self) -> Option<&Thread> {
+        self.thread.as_ref().and_then(|t| t.inner())
+    }
+
     fn register(&mut self) {
         assert_eq!(self.state, PollerState::Starting);
 
-        if let Some(t) = self.thread {
+        if let Some(t) = self.thread_inner() {
             trace!(
                 "Created an SPDK thread '{}' ({:p}) for poller '{}'",
                 t.name(),
@@ -168,14 +174,16 @@ where
         }
 
         if let Some(t) = self.thread.take() {
-            trace!(
-                "Exiting poller thread '{}' ({:p}): '{}' ({:p})",
-                self.dbg_name(),
-                self,
-                t.name(),
-                t.as_ptr(),
-            );
-            t.exit();
+            if let Some(t) = t.take_owned() {
+                trace!(
+                    "Exiting poller thread '{}' ({:p}): '{}' ({:p})",
+                    self.dbg_name(),
+                    self,
+                    t.name(),
+                    t.as_ptr(),
+                );
+                t.exit();
+            }
         }
 
         unsafe {
@@ -307,7 +315,40 @@ where
     data: Option<T>,
     poll_fn: Option<Box<dyn FnMut(&T) -> i32 + 'a>>,
     interval: std::time::Duration,
-    core: Option<u32>,
+    core_thread: PollerBuildThread,
+}
+
+enum PollerBuildThread {
+    /// Uses the current thread.
+    Current,
+    /// Creates a new thread on the specified core.
+    NewOnCore(u32),
+    /// Uses the provided thread.
+    Thread(Thread),
+}
+
+enum PollerThread {
+    /// Uses the current thread.
+    Current,
+    /// Creates a new thread on the specified core.
+    Owned(Thread),
+    /// Uses the provided thread.
+    Shared(Thread),
+}
+impl PollerThread {
+    fn inner(&self) -> Option<&Thread> {
+        match &self {
+            PollerThread::Current => None,
+            PollerThread::Owned(th) | PollerThread::Shared(th) => Some(th),
+        }
+    }
+    fn take_owned(self) -> Option<Thread> {
+        match self {
+            PollerThread::Current => None,
+            PollerThread::Owned(th) => Some(th),
+            PollerThread::Shared(th) => None,
+        }
+    }
 }
 
 impl<'a, T> Default for PollerBuilder<'a, T>
@@ -331,13 +372,19 @@ where
             data: None,
             poll_fn: None,
             interval: Duration::from_micros(0),
-            core: None,
+            core_thread: PollerBuildThread::Current,
         }
     }
 
     /// Sets optional poller name.
     pub fn with_name(mut self, name: &str) -> Self {
         self.name = Some(String::from(name));
+        self
+    }
+
+    /// Use an existing thread.
+    pub fn with_thread(mut self, thread: Thread) -> Self {
+        self.core_thread = PollerBuildThread::Thread(thread);
         self
     }
 
@@ -365,8 +412,9 @@ where
     }
 
     /// Sets the CPU core to run poller on.
+    /// A new thread will be created.
     pub fn with_core(mut self, core: u32) -> Self {
-        self.core = Some(core);
+        self.core_thread = PollerBuildThread::NewOnCore(core);
         self
     }
 
@@ -383,9 +431,13 @@ where
     pub fn build(self) -> Poller<'a, T> {
         // If this poller is configured to run on a different core,
         // create a thread for it.
-        let thread = self
-            .core
-            .map(|core| Thread::new(self.thread_name(), core).unwrap());
+        let thread = Some(match self.core_thread {
+            PollerBuildThread::Current => PollerThread::Current,
+            PollerBuildThread::NewOnCore(core) => {
+                PollerThread::Owned(Thread::new(self.thread_name(), core).unwrap())
+            }
+            PollerBuildThread::Thread(thread) => PollerThread::Shared(thread),
+        });
 
         // Create a new poller.
         let mut ctx = Box::new(PollerInner {
