@@ -2,12 +2,12 @@ name: Code Linter
 on:
   merge_group:
   pull_request:
-    types: ['opened', 'edited', 'reopened', 'synchronize']
+    types: [ 'opened', 'edited', 'reopened', 'synchronize' ]
 jobs:
   rust-lint:
     strategy:
       matrix:
-        os: [github-arm64-2c-8gb, ubuntu-latest]
+        os: [ github-arm64-2c-8gb, ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -18,6 +18,8 @@ jobs:
           nix_path: nixpkgs=channel:nixos-22.11
       - name: nix-shell
         run: nix-shell --pure --run exit
+      - name: Patch getrandom crate
+        run: sed -i 's/uuid = { version = "1\.11", features = \["v4"\] }/uuid = { version = "=1.11", features = ["v4"] }/' Cargo.toml
       - name: cargo-clippy
         run: nix-shell --pure --run ./scripts/rust-linter.sh
       - name: cargo-fmt
