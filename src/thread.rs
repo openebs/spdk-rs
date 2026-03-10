@@ -61,6 +61,11 @@ impl Thread {
         .map(|inner| Self { inner })
     }
 
+    /// Find thread by its thread id.
+    pub fn by_id(id: u64) -> Option<Self> {
+        NonNull::new(unsafe { spdk_thread_get_by_id(id) }).map(|inner| Self { inner })
+    }
+
     /// Marks thread as exiting.
     pub fn exit(&self) {
         trace!("Exiting SPDK thread: {:?}", self);
