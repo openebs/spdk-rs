@@ -21,6 +21,7 @@
 #include <spdk/cpuset.h>
 #include <spdk/crc32.h>
 #include <spdk/env.h>
+#include <spdk/fd_group.h>
 #include <spdk/env_dpdk.h>
 #include <spdk/event.h>
 #include <spdk/jsonrpc.h>

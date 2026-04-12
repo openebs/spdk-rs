@@ -10,9 +10,14 @@ use std::{
 use crate::{
     cpu_cores::{Cores, CpuMask},
     libspdk::{
-        spdk_get_thread, spdk_set_thread, spdk_thread, spdk_thread_create, spdk_thread_destroy,
-        spdk_thread_exit, spdk_thread_get_by_id, spdk_thread_get_id, spdk_thread_get_name,
-        spdk_thread_is_exited, spdk_thread_poll, spdk_thread_send_msg,
+        spdk_event_handler_opts, spdk_fd_group, spdk_fd_group_add, spdk_fd_group_add_ext,
+        spdk_fd_group_create, spdk_fd_group_destroy, spdk_fd_group_get_default_event_handler_opts,
+        spdk_fd_group_nest, spdk_fd_group_unnest, spdk_fd_group_wait, spdk_get_thread,
+        spdk_interrupt_mode_enable, spdk_interrupt_mode_is_enabled, spdk_set_thread, spdk_thread,
+        spdk_thread_create, spdk_thread_destroy, spdk_thread_exit, spdk_thread_get_by_id,
+        spdk_thread_get_id, spdk_thread_get_interrupt_fd, spdk_thread_get_interrupt_fd_group,
+        spdk_thread_get_name, spdk_thread_is_exited, spdk_thread_poll, spdk_thread_send_msg,
+        spdk_thread_set_interrupt_mode,
     },
 };
 
@@ -157,6 +162,43 @@ impl Thread {
         let _ = unsafe { spdk_thread_poll(self.as_ptr(), 0, 0) };
     }
 
+    /// Switch the current SPDK thread between poll mode and interrupt mode.
+    ///
+    /// In interrupt mode, the thread's pollers are driven by epoll events
+    /// instead of busy-polling, dramatically reducing CPU usage when idle.
+    ///
+    /// # Safety
+    /// Must be called from within the context of this SPDK thread
+    /// (i.e., this thread must be set as the current thread).
+    /// `interrupt_mode_enable()` must have been called during init.
+    pub fn set_interrupt_mode(enable: bool) {
+        unsafe { spdk_thread_set_interrupt_mode(enable) }
+    }
+
+    /// Get the interrupt fd (epoll fd) for this thread.
+    ///
+    /// Returns the file descriptor that becomes ready when any of the
+    /// thread's interrupt file descriptors have events. Only meaningful
+    /// when the thread is in interrupt mode.
+    pub fn get_interrupt_fd(&self) -> i32 {
+        unsafe { spdk_thread_get_interrupt_fd(self.as_ptr()) }
+    }
+
+    /// Enable SPDK interrupt mode globally.
+    ///
+    /// Must be called once during initialization before any thread
+    /// can use `set_interrupt_mode()`.
+    ///
+    /// Returns 0 on success or -errno on failure.
+    pub fn interrupt_mode_enable() -> i32 {
+        unsafe { spdk_interrupt_mode_enable() }
+    }
+
+    /// Check if SPDK interrupt mode is globally enabled.
+    pub fn interrupt_mode_is_enabled() -> bool {
+        unsafe { spdk_interrupt_mode_is_enabled() }
+    }
+
     /// TODO
     #[inline]
     pub fn set_current(&self) {
@@ -286,6 +328,151 @@ impl Thread {
             None => {
                 format!("Non-SPDK thread [core {}]", Cores::current())
             }
+        }
+    }
+
+    /// Get the interrupt fd_group for this thread.
+    ///
+    /// Returns a raw pointer to the thread's `spdk_fd_group`, which can
+    /// be nested into a reactor-level fd_group for hierarchical event
+    /// multiplexing. Only meaningful when interrupt mode is enabled.
+    pub fn get_interrupt_fd_group(&self) -> *mut spdk_fd_group {
+        unsafe { spdk_thread_get_interrupt_fd_group(self.as_ptr()) }
+    }
+}
+
+/// fd_type value for eventfds: `fd_group_wait()` auto-drains these
+/// by reading the counter to 0 before invoking the callback.
+/// Matches `SPDK_FD_TYPE_EVENTFD` in `spdk/fd_group.h`.
+pub const FD_TYPE_EVENTFD: u32 = 0x1;
+
+/// Wrapper for `spdk_fd_group` -- an event multiplexing group that
+/// aggregates file descriptors and supports hierarchical nesting.
+///
+/// Used by reactors to block until any nested thread has events,
+/// implementing SPDK's interrupt-driven reactor pattern.
+pub struct FdGroup {
+    inner: NonNull<spdk_fd_group>,
+    /// Whether this FdGroup owns the underlying pointer (should destroy on drop).
+    owned: bool,
+}
+
+impl Debug for FdGroup {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "FdGroup({:p})", self.inner)
+    }
+}
+
+unsafe impl Send for FdGroup {}
+
+impl FdGroup {
+    /// Create a new fd_group.
+    pub fn create() -> Result<Self, i32> {
+        let mut ptr: *mut spdk_fd_group = std::ptr::null_mut();
+        let rc = unsafe { spdk_fd_group_create(&mut ptr) };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(Self {
+            inner: NonNull::new(ptr).expect("spdk_fd_group_create returned null"),
+            owned: true,
+        })
+    }
+
+    /// Add a file descriptor to this fd_group with a callback.
+    ///
+    /// When `efd` becomes readable, `fn_` is called with `arg`.
+    pub fn add(
+        &self,
+        efd: i32,
+        fn_: unsafe extern "C" fn(*mut c_void) -> i32,
+        arg: *mut c_void,
+    ) -> Result<(), i32> {
+        let rc = unsafe { spdk_fd_group_add(self.as_ptr(), efd, Some(fn_), arg, std::ptr::null()) };
+        if rc != 0 {
+            Err(rc)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Add a file descriptor with an explicit `fd_type`.
+    ///
+    /// Use `FD_TYPE_EVENTFD` for eventfds so that `fd_group_wait()`
+    /// automatically drains them (reads the counter to 0) before
+    /// calling the callback. Without this, level-triggered epoll
+    /// returns the fd on every call, causing a busy-spin.
+    pub fn add_with_fd_type(
+        &self,
+        efd: i32,
+        fn_: unsafe extern "C" fn(*mut c_void) -> i32,
+        arg: *mut c_void,
+        fd_type: u32,
+    ) -> Result<(), i32> {
+        let mut opts: spdk_event_handler_opts = unsafe { std::mem::zeroed() };
+        unsafe {
+            spdk_fd_group_get_default_event_handler_opts(
+                &mut opts,
+                std::mem::size_of::<spdk_event_handler_opts>() as u64,
+            );
+        }
+        opts.fd_type = fd_type;
+        let rc = unsafe {
+            spdk_fd_group_add_ext(
+                self.as_ptr(),
+                efd,
+                Some(fn_),
+                arg,
+                std::ptr::null(),
+                &mut opts,
+            )
+        };
+        if rc != 0 {
+            Err(rc)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Wait for events on the fd_group.
+    ///
+    /// `timeout` is in milliseconds. -1 blocks forever, 0 is non-blocking.
+    /// Returns the number of events processed.
+    pub fn wait(&self, timeout: i32) -> i32 {
+        unsafe { spdk_fd_group_wait(self.as_ptr(), timeout) }
+    }
+
+    /// Nest a child fd_group (typically a thread's fd_group) into this
+    /// parent fd_group. Events on the child will wake the parent's wait.
+    pub fn nest(&self, child: *mut spdk_fd_group) -> Result<(), i32> {
+        let rc = unsafe { spdk_fd_group_nest(self.as_ptr(), child) };
+        if rc != 0 {
+            Err(rc)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Remove a previously nested child fd_group.
+    pub fn unnest(&self, child: *mut spdk_fd_group) -> Result<(), i32> {
+        let rc = unsafe { spdk_fd_group_unnest(self.as_ptr(), child) };
+        if rc != 0 {
+            Err(rc)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Returns the raw pointer to the underlying `spdk_fd_group`.
+    pub fn as_ptr(&self) -> *mut spdk_fd_group {
+        self.inner.as_ptr()
+    }
+}
+
+impl Drop for FdGroup {
+    fn drop(&mut self) {
+        if self.owned {
+            unsafe { spdk_fd_group_destroy(self.as_ptr()) };
         }
     }
 }
