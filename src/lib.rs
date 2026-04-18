@@ -78,7 +78,7 @@ pub use crate::{
     },
     nvmf::{NvmfController, NvmfSubsystemEvent},
     poller::{Poller, PollerBuilder},
-    thread::{CurrentThreadGuard, FdGroup, Thread, FD_TYPE_EVENTFD},
+    thread::{CurrentThreadGuard, FdGroup, Thread},
     unsafe_types::{UnsafeData, UnsafeRef},
     untyped_bdev::UntypedBdev,
     uuid::Uuid,

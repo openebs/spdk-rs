@@ -347,11 +347,6 @@ impl Thread {
     }
 }
 
-/// fd_type value for eventfds: `fd_group_wait()` auto-drains these
-/// by reading the counter to 0 before invoking the callback.
-/// Matches `SPDK_FD_TYPE_EVENTFD` in `spdk/fd_group.h`.
-pub const FD_TYPE_EVENTFD: u32 = 0x1;
-
 /// Wrapper for `spdk_fd_group` -- an event multiplexing group that
 /// aggregates file descriptors and supports hierarchical nesting.
 ///
