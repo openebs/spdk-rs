@@ -189,9 +189,15 @@ impl Thread {
     /// Must be called once during initialization before any thread
     /// can use `set_interrupt_mode()`.
     ///
-    /// Returns 0 on success or -errno on failure.
-    pub fn interrupt_mode_enable() -> i32 {
-        unsafe { spdk_interrupt_mode_enable() }
+    /// Returns `Ok(())` on success. Must be called before
+    /// `spdk_thread_lib_init_ext()`.
+    pub fn interrupt_mode_enable() -> Result<(), Errno> {
+        let rc = unsafe { spdk_interrupt_mode_enable() };
+        if rc != 0 {
+            Err(Errno::from_raw(rc.abs()))
+        } else {
+            Ok(())
+        }
     }
 
     /// Check if SPDK interrupt mode is globally enabled.
@@ -367,11 +373,11 @@ unsafe impl Send for FdGroup {}
 
 impl FdGroup {
     /// Create a new fd_group.
-    pub fn create() -> Result<Self, i32> {
+    pub fn create() -> Result<Self, Errno> {
         let mut ptr: *mut spdk_fd_group = std::ptr::null_mut();
         let rc = unsafe { spdk_fd_group_create(&mut ptr) };
         if rc != 0 {
-            return Err(rc);
+            return Err(Errno::from_raw(rc.abs()));
         }
         Ok(Self {
             inner: NonNull::new(ptr).expect("spdk_fd_group_create returned null"),
@@ -387,10 +393,10 @@ impl FdGroup {
         efd: i32,
         fn_: unsafe extern "C" fn(*mut c_void) -> i32,
         arg: *mut c_void,
-    ) -> Result<(), i32> {
+    ) -> Result<(), Errno> {
         let rc = unsafe { spdk_fd_group_add(self.as_ptr(), efd, Some(fn_), arg, std::ptr::null()) };
         if rc != 0 {
-            Err(rc)
+            Err(Errno::from_raw(rc.abs()))
         } else {
             Ok(())
         }
@@ -408,7 +414,7 @@ impl FdGroup {
         fn_: unsafe extern "C" fn(*mut c_void) -> i32,
         arg: *mut c_void,
         fd_type: u32,
-    ) -> Result<(), i32> {
+    ) -> Result<(), Errno> {
         let mut opts: spdk_event_handler_opts = unsafe { std::mem::zeroed() };
         unsafe {
             spdk_fd_group_get_default_event_handler_opts(
@@ -428,7 +434,7 @@ impl FdGroup {
             )
         };
         if rc != 0 {
-            Err(rc)
+            Err(Errno::from_raw(rc.abs()))
         } else {
             Ok(())
         }
@@ -437,27 +443,29 @@ impl FdGroup {
     /// Wait for events on the fd_group.
     ///
     /// `timeout` is in milliseconds. -1 blocks forever, 0 is non-blocking.
-    /// Returns the number of events processed.
+    /// Returns the number of events processed on success, or a negative
+    /// `-errno` on failure. Kept as raw `i32` (not `Result<_, Errno>`)
+    /// because the non-error path carries a count, not unit.
     pub fn wait(&self, timeout: i32) -> i32 {
         unsafe { spdk_fd_group_wait(self.as_ptr(), timeout) }
     }
 
     /// Nest a child fd_group (typically a thread's fd_group) into this
     /// parent fd_group. Events on the child will wake the parent's wait.
-    pub fn nest(&self, child: *mut spdk_fd_group) -> Result<(), i32> {
+    pub fn nest(&self, child: *mut spdk_fd_group) -> Result<(), Errno> {
         let rc = unsafe { spdk_fd_group_nest(self.as_ptr(), child) };
         if rc != 0 {
-            Err(rc)
+            Err(Errno::from_raw(rc.abs()))
         } else {
             Ok(())
         }
     }
 
     /// Remove a previously nested child fd_group.
-    pub fn unnest(&self, child: *mut spdk_fd_group) -> Result<(), i32> {
+    pub fn unnest(&self, child: *mut spdk_fd_group) -> Result<(), Errno> {
         let rc = unsafe { spdk_fd_group_unnest(self.as_ptr(), child) };
         if rc != 0 {
-            Err(rc)
+            Err(Errno::from_raw(rc.abs()))
         } else {
             Ok(())
         }
