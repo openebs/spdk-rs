@@ -359,8 +359,6 @@ pub const FD_TYPE_EVENTFD: u32 = 0x1;
 /// implementing SPDK's interrupt-driven reactor pattern.
 pub struct FdGroup {
     inner: NonNull<spdk_fd_group>,
-    /// Whether this FdGroup owns the underlying pointer (should destroy on drop).
-    owned: bool,
 }
 
 impl Debug for FdGroup {
@@ -381,7 +379,6 @@ impl FdGroup {
         }
         Ok(Self {
             inner: NonNull::new(ptr).expect("spdk_fd_group_create returned null"),
-            owned: true,
         })
     }
 
@@ -479,9 +476,7 @@ impl FdGroup {
 
 impl Drop for FdGroup {
     fn drop(&mut self) {
-        if self.owned {
-            unsafe { spdk_fd_group_destroy(self.as_ptr()) };
-        }
+        unsafe { spdk_fd_group_destroy(self.as_ptr()) };
     }
 }
 
