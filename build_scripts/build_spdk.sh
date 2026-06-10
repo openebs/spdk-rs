@@ -51,6 +51,7 @@ CONFIGURE_ARGS=(
     "--disable-tests"
     "--with-rdma"
     "--with-crypto"
+    "--max-lcores=256"
 )
 
 MAKE_DEFAULT_ARGS="-j"                              # Default args for invoking GNU make
