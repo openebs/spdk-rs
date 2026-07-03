@@ -18,7 +18,7 @@ jobs:
         os: [github-arm64-2c-8gb, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
       - run: |
@@ -38,7 +38,7 @@ jobs:
         os: [github-arm64-2c-8gb, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
       - run: |
@@ -48,7 +48,7 @@ jobs:
           nix_path: ${{ env.NIX_PATH }}
       - run: |
           echo "SPDK_REV=$(nix-instantiate --eval -A libspdk.rev | cut -d '"' -f2)" >> $GITHUB_ENV
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           repository: ${{ github.repository_owner }}/spdk
@@ -69,7 +69,7 @@ jobs:
   nix-lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
       - run: |
