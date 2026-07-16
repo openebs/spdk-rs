@@ -291,19 +291,42 @@ impl Thread {
 
     /// TODO
     pub fn unaffinitize() {
+        Self::unaffinitize_tid(0);
+
+        unsafe {
+            trace!("pthread started on core {}", libc::sched_getcpu());
+        }
+    }
+
+    pub fn unaffinitize_tid(tid: libc::pid_t) {
         unsafe {
             let mut set: libc::cpu_set_t = std::mem::zeroed();
-            for i in 0..libc::sysconf(libc::_SC_NPROCESSORS_ONLN) {
-                libc::CPU_SET(i as usize, &mut set)
+
+            // Seed the mask from the thread's current allowed set. Under a
+            // cpuset cgroup this is the container's cpuset.cpus, i.e. the cores
+            // that belong to this workload. Using every online CPU here would
+            // let workers spill onto CPUs reserved for other workloads (other
+            // Guaranteed pods' dedicatedCpus, foreign isolcpus), which the
+            // kernel then never migrates them off.
+            if libc::sched_getaffinity(tid, std::mem::size_of::<libc::cpu_set_t>(), &mut set) != 0 {
+                // Fallback: all online CPUs.
+                for i in 0..libc::sysconf(libc::_SC_NPROCESSORS_ONLN) {
+                    libc::CPU_SET(i as usize, &mut set);
+                }
             }
 
-            Cores::count()
-                .into_iter()
-                .for_each(|i| libc::CPU_CLR(i as usize, &mut set));
+            // Keep workers off our reactor cores.
+            Cores::count().into_iter().for_each(|i| {
+                libc::CPU_CLR(i as usize, &mut set);
+            });
 
-            libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &set);
+            // Never pin to an empty set (e.g. cpuset == reactor cores only);
+            // fall back to the original allowed set in that case.
+            if libc::CPU_COUNT(&set) == 0 {
+                libc::sched_getaffinity(tid, std::mem::size_of::<libc::cpu_set_t>(), &mut set);
+            }
 
-            trace!("pthread started on core {}", libc::sched_getcpu());
+            libc::sched_setaffinity(tid, std::mem::size_of::<libc::cpu_set_t>(), &set);
         }
     }
 
