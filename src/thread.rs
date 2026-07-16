@@ -21,6 +21,19 @@ use crate::{
     },
 };
 
+/// The process's baseline CPU affinity: under a cpuset cgroup this is the
+/// container's `cpuset.cpus` (the CPUs assigned to this workload). It is the
+/// correct seed for placing off-reactor worker threads: unlike a thread's
+/// *current* affinity, it does not collapse to a single reactor core when
+/// `unaffinitize` is invoked from within a reactor context.
+///
+/// Seeded once at startup via [`Thread::capture_base_cpuset`], and refreshed
+/// via [`Thread::refresh_base_cpuset`] whenever kubelet's CPUManager grows or
+/// shrinks the container cpuset -- so restored worker affinity always tracks
+/// the *current* cpuset, and workers reclaim CPUs that are returned to the
+/// workload rather than staying pinned to the smaller startup set.
+static BASE_CPUSET: std::sync::Mutex<Option<libc::cpu_set_t>> = std::sync::Mutex::new(None);
+
 /// Wrapper for `spdk_thread`.
 #[derive(PartialEq, Clone, Copy)]
 pub struct Thread {
@@ -298,18 +311,113 @@ impl Thread {
         }
     }
 
+    /// Captures the process's baseline CPU affinity into [`BASE_CPUSET`].
+    ///
+    /// Must be called once at startup from the main thread, *before* reactors
+    /// pin themselves to individual cores. This snapshot is the container's
+    /// cgroup cpuset and is used as the seed for off-reactor worker placement.
+    pub fn capture_base_cpuset() {
+        unsafe {
+            let mut set: libc::cpu_set_t = std::mem::zeroed();
+            if libc::sched_getaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &mut set) == 0 {
+                *BASE_CPUSET.lock().unwrap() = Some(set);
+            } else {
+                trace!("failed to capture base cpuset for worker unaffinitization");
+            }
+        }
+    }
+
+    /// Refreshes [`BASE_CPUSET`] with the process's *current* cgroup cpuset.
+    ///
+    /// Unlike [`Thread::capture_base_cpuset`], this is safe to call at any
+    /// time -- notably from the cpuset monitor's reconcile path after kubelet
+    /// has grown or shrunk the container cpuset. It cannot read the cpuset from
+    /// the calling thread, because by then reactor and worker threads have
+    /// pinned themselves to a subset of the cpuset. Instead it asks the kernel
+    /// on a throwaway scratch thread: set the scratch thread's *requested*
+    /// affinity to every possible CPU, then read it back. The kernel returns
+    /// `all_cpus & cgroup_cpuset`, which is exactly the current cpuset.
+    ///
+    /// This is race-free with respect to file contents -- a single atomic
+    /// kernel view, no `/proc` or cgroupfs parsing (whose files can momentarily
+    /// disagree with each other) -- and it tracks both grow and shrink, because
+    /// the wide requested mask is re-asserted on the scratch thread every call
+    /// (so it does not depend on the kernel restoring a previously-narrowed
+    /// mask).
+    ///
+    /// Returns `true` if the cpuset it read differs from the previously stored
+    /// one (so the caller can skip re-applying affinity when nothing changed),
+    /// `false` if unchanged or the query failed.
+    ///
+    /// Note for callers driven by the kubelet `cpu_manager_state` file: kubelet
+    /// writes that file *before* it widens the container's cgroup cpuset on a
+    /// grow, so a single call right after the file event can still observe the
+    /// pre-grow cpuset (returning `false`); the caller should re-poll for a
+    /// short window until it changes.
+    pub fn refresh_base_cpuset() -> bool {
+        let cpuset = std::thread::spawn(|| unsafe {
+            let mut all: libc::cpu_set_t = std::mem::zeroed();
+            let n = libc::sysconf(libc::_SC_NPROCESSORS_CONF);
+            let n = if n > 0 {
+                (n as usize).min(libc::CPU_SETSIZE as usize)
+            } else {
+                libc::CPU_SETSIZE as usize
+            };
+            for i in 0..n {
+                libc::CPU_SET(i, &mut all);
+            }
+            // Widen the scratch thread's requested mask to all CPUs; the kernel
+            // intersects it with the container cpuset.
+            libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &all);
+
+            let mut cur: libc::cpu_set_t = std::mem::zeroed();
+            if libc::sched_getaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &mut cur) == 0 {
+                Some(cur)
+            } else {
+                None
+            }
+        })
+        .join()
+        .ok()
+        .flatten();
+
+        match cpuset {
+            Some(set) => {
+                let mut guard = BASE_CPUSET.lock().unwrap();
+                let changed = match *guard {
+                    Some(old) => !unsafe { libc::CPU_EQUAL(&old, &set) },
+                    None => true,
+                };
+                *guard = Some(set);
+                changed
+            }
+            None => false,
+        }
+    }
+
     pub fn unaffinitize_tid(tid: libc::pid_t) {
         unsafe {
             let mut set: libc::cpu_set_t = std::mem::zeroed();
 
-            // Seed the mask from the thread's current allowed set. Under a
-            // cpuset cgroup this is the container's cpuset.cpus, i.e. the cores
-            // that belong to this workload. Using every online CPU here would
-            // let workers spill onto CPUs reserved for other workloads (other
-            // Guaranteed pods' dedicatedCpus, foreign isolcpus), which the
-            // kernel then never migrates them off.
-            if libc::sched_getaffinity(tid, std::mem::size_of::<libc::cpu_set_t>(), &mut set) != 0 {
-                // Fallback: all online CPUs.
+            // Seed the mask from the process's baseline cpuset (the container's
+            // cpuset.cpus), captured at startup before reactors pinned
+            // themselves. This keeps workers inside the CPUs assigned to this
+            // workload -- so restoring affinity can't place them on CPUs
+            // reserved for other workloads (other Guaranteed pods'
+            // dedicatedCpus, foreign isolcpus) -- while still covering every
+            // non-reactor core the workload owns.
+            //
+            // We must NOT seed from the calling thread's *current* affinity:
+            // threads spawned from a reactor context inherit that reactor's
+            // single-core pin, so seeding from it and then clearing the reactor
+            // cores would leave an empty mask and pin the worker right back onto
+            // a reactor core -- the opposite of unaffinitization.
+            if let Some(base) = *BASE_CPUSET.lock().unwrap() {
+                set = base;
+            } else if libc::sched_getaffinity(tid, std::mem::size_of::<libc::cpu_set_t>(), &mut set)
+                != 0
+            {
+                // Fallback (base cpuset was never captured): all online CPUs.
                 for i in 0..libc::sysconf(libc::_SC_NPROCESSORS_ONLN) {
                     libc::CPU_SET(i as usize, &mut set);
                 }
@@ -320,10 +428,16 @@ impl Thread {
                 libc::CPU_CLR(i as usize, &mut set);
             });
 
-            // Never pin to an empty set (e.g. cpuset == reactor cores only);
-            // fall back to the original allowed set in that case.
+            // Never pin to an empty set. This only happens when the workload's
+            // entire cpuset is reactor cores, so there is genuinely no
+            // off-reactor CPU to use: fall back to the whole allowed set
+            // (base cpuset if we have it, else the thread's current mask).
             if libc::CPU_COUNT(&set) == 0 {
-                libc::sched_getaffinity(tid, std::mem::size_of::<libc::cpu_set_t>(), &mut set);
+                if let Some(base) = *BASE_CPUSET.lock().unwrap() {
+                    set = base;
+                } else {
+                    libc::sched_getaffinity(tid, std::mem::size_of::<libc::cpu_set_t>(), &mut set);
+                }
             }
 
             libc::sched_setaffinity(tid, std::mem::size_of::<libc::cpu_set_t>(), &set);
