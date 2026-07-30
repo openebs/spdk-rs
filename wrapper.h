@@ -48,6 +48,7 @@
 #include <blob/blobstore.h>
 #include <spdk/accel_module.h>
 #include <accel/dpdk_cryptodev/accel_dpdk_cryptodev.h>
+#include <ublk/ublk_internal.h>
 
 #include "helpers/logwrapper.h"
 #include "helpers/nvme_helper.h"
