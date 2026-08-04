@@ -302,13 +302,18 @@ impl Thread {
         unsafe {
             let mut set: libc::cpu_set_t = std::mem::zeroed();
 
-            // Seed the mask from the thread's current allowed set. Under a
-            // cpuset cgroup this is the container's cpuset.cpus, i.e. the cores
-            // that belong to this workload. Using every online CPU here would
-            // let workers spill onto CPUs reserved for other workloads (other
+            // Seed the mask from the cpuset of this workload. Under a cpuset
+            // cgroup that is the container's cpuset.cpus, i.e. the cores that
+            // belong to this workload. Using every online CPU here would let
+            // workers spill onto CPUs reserved for other workloads (other
             // Guaranteed pods' dedicatedCpus, foreign isolcpus), which the
             // kernel then never migrates them off.
-            if libc::sched_getaffinity(tid, std::mem::size_of::<libc::cpu_set_t>(), &mut set) != 0 {
+            //
+            // The thread's own allowed set cannot stand in for the cpuset: the
+            // caller may be a reactor thread, which EAL has pinned to a single
+            // core, and a mask seeded from that collapses to nothing once the
+            // reactor cores are cleared.
+            if !Self::cgroup_cpuset(&mut set) {
                 // Fallback: all online CPUs.
                 for i in 0..libc::sysconf(libc::_SC_NPROCESSORS_ONLN) {
                     libc::CPU_SET(i as usize, &mut set);
@@ -328,6 +333,73 @@ impl Thread {
 
             libc::sched_setaffinity(tid, std::mem::size_of::<libc::cpu_set_t>(), &set);
         }
+    }
+
+    /// Fills the set with the effective cpuset of this workload, as seen
+    /// through the cgroup. Returns false when it cannot be determined.
+    fn cgroup_cpuset(set: &mut libc::cpu_set_t) -> bool {
+        match Self::cgroup_cpuset_list() {
+            None => false,
+            Some(list) => Self::cpuset_from_list(&list, set),
+        }
+    }
+
+    /// Fills the set from a cpuset cpu list ("0-3,8,10-11"). Returns false if
+    /// the list is empty or cannot be parsed, leaving the set untrusted.
+    fn cpuset_from_list(list: &str, set: &mut libc::cpu_set_t) -> bool {
+        let mut found = false;
+        for range in list.trim().split(',').filter(|r| !r.is_empty()) {
+            let (first, last) = match range.split_once('-') {
+                None => (range, range),
+                Some((first, last)) => (first, last),
+            };
+            let (Ok(first), Ok(last)) = (first.parse::<usize>(), last.parse::<usize>()) else {
+                return false;
+            };
+            for cpu in first..=last {
+                if cpu < 8 * std::mem::size_of::<libc::cpu_set_t>() {
+                    unsafe { libc::CPU_SET(cpu, set) };
+                    found = true;
+                }
+            }
+        }
+        found
+    }
+
+    /// Reads the cpu list of this workload's cpuset, trying the cgroup v2 and
+    /// then the v1 layout, and finally the v2 root.
+    fn cgroup_cpuset_list() -> Option<String> {
+        let self_cgroup = std::fs::read_to_string("/proc/self/cgroup").unwrap_or_default();
+        let mut v2_path = None;
+        let mut v1_path = None;
+        for line in self_cgroup.lines() {
+            // hierarchy-id:controller-list:cgroup-path
+            let mut fields = line.split(':');
+            let (Some(id), Some(controllers), Some(path)) =
+                (fields.next(), fields.next(), fields.next())
+            else {
+                continue;
+            };
+            if id == "0" && controllers.is_empty() {
+                v2_path = Some(path.to_string());
+            } else if controllers.split(',').any(|c| c == "cpuset") {
+                v1_path = Some(path.to_string());
+            }
+        }
+
+        let mut candidates = Vec::new();
+        if let Some(path) = &v2_path {
+            candidates.push(format!("/sys/fs/cgroup{path}/cpuset.cpus.effective"));
+        }
+        if let Some(path) = &v1_path {
+            candidates.push(format!("/sys/fs/cgroup/cpuset{path}/cpuset.effective_cpus"));
+        }
+        candidates.push("/sys/fs/cgroup/cpuset.cpus.effective".to_string());
+
+        candidates.into_iter().find_map(|path| {
+            let list = std::fs::read_to_string(&path).ok()?;
+            (!list.trim().is_empty()).then_some(list)
+        })
     }
 
     /// TODO
@@ -515,6 +587,46 @@ impl CurrentThreadGuard {
     pub fn new() -> Self {
         Self {
             previous: Thread::current(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cpus(list: &str) -> Option<Vec<usize>> {
+        let mut set: libc::cpu_set_t = unsafe { std::mem::zeroed() };
+        if !Thread::cpuset_from_list(list, &mut set) {
+            return None;
+        }
+        Some(
+            (0..16)
+                .filter(|cpu| unsafe { libc::CPU_ISSET(*cpu, &set) })
+                .collect(),
+        )
+    }
+
+    #[test]
+    fn cpuset_list_parsing() {
+        assert_eq!(cpus("3"), Some(vec![3]));
+        assert_eq!(cpus("0-3"), Some(vec![0, 1, 2, 3]));
+        assert_eq!(cpus("0-1,4,6-7"), Some(vec![0, 1, 4, 6, 7]));
+        assert_eq!(cpus("2\n"), Some(vec![2]));
+        // an unusable list must be reported, not silently taken as empty
+        assert_eq!(cpus(""), None);
+        assert_eq!(cpus("  \n"), None);
+        assert_eq!(cpus("a-b"), None);
+        assert_eq!(cpus("0-"), None);
+    }
+
+    #[test]
+    fn cgroup_cpuset_is_readable() {
+        let mut set: libc::cpu_set_t = unsafe { std::mem::zeroed() };
+        // Must not panic wherever it runs; when a cpuset is exposed the set it
+        // reports has to be non-empty.
+        if Thread::cgroup_cpuset(&mut set) {
+            assert!(unsafe { libc::CPU_COUNT(&set) } > 0);
         }
     }
 }
