@@ -8,7 +8,8 @@ use crate::{
         spdk_bdev_io, spdk_bdev_io_type, spdk_get_io_channel, spdk_io_channel, spdk_json_write_ctx,
         SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE,
     },
-    Bdev, BdevIo, BdevModule, BdevOps, IoChannel, IoDevice, IoType, JsonWriteContext, Uuid,
+    Bdev, BdevDestruct, BdevIo, BdevModule, BdevOps, IoChannel, IoDevice, IoType, JsonWriteContext,
+    Uuid,
 };
 
 /// Builder for `Bdev` structure.
@@ -249,10 +250,18 @@ unsafe extern "C" fn inner_bdev_destruct<BdevData>(ctx: *mut c_void) -> i32
 where
     BdevData: BdevOps,
 {
-    // Dropping the container will drop all the associated resources:
-    // the context, names, function table and `spdk_bdev` itself.
-    Box::from_raw(ctx as *mut Container<BdevData>);
-    0
+    let container = &mut *(ctx as *mut Container<BdevData>);
+    let data = std::pin::Pin::new_unchecked(&mut container.data);
+
+    match data.destruct() {
+        BdevDestruct::Sync => {
+            // Dropping the container frees the context, names, function table
+            // and `spdk_bdev` after synchronous destruction has completed.
+            drop(Box::from_raw(ctx as *mut Container<BdevData>));
+            0
+        }
+        BdevDestruct::Async => 1,
+    }
 }
 
 /// TODO

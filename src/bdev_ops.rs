@@ -1,6 +1,23 @@
-///! TODO
+//! TODO
 use crate::{BdevIo, IoChannel, IoDevice, IoType, JsonWriteContext};
-use std::pin::Pin;
+use std::{os::raw::c_void, pin::Pin};
+
+/// Describes whether a bdev destructor has completed in-line or if we need to
+/// await for the I/O device unregister callback.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum BdevDestruct {
+    /// Destruction completed synchronously.
+    Sync,
+    /// Destruction will complete through an I/O-device unregister callback.
+    Async,
+}
+
+/// Deferred completion of an asynchronous bdev destruction.
+pub struct BdevDestructCompletion {
+    pub(crate) bdev: *mut crate::libspdk::spdk_bdev,
+    pub(crate) context: *mut c_void,
+    pub(crate) drop_context: unsafe fn(*mut c_void),
+}
 
 /// TODO
 pub trait BdevOps {
@@ -14,7 +31,7 @@ pub trait BdevOps {
     type IoDev: IoDevice;
 
     /// TODO
-    fn destruct(self: Pin<&mut Self>);
+    fn destruct(self: Pin<&mut Self>) -> BdevDestruct;
 
     /// TODO
     ///
