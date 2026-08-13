@@ -19,7 +19,7 @@ use crate::{
         spdk_bdev_module_release_bdev, spdk_bdev_register, spdk_bdev_unregister,
         vbdev_crypto_disk_get_base_bdev, SPDK_BDEV_CLAIM_EXCL_WRITE, SPDK_BDEV_CLAIM_NONE,
     },
-    BdevIo, BdevModule, BdevOps, IoChannel, IoDevice, IoType, Thread, Uuid,
+    BdevDestructCompletion, BdevIo, BdevModule, BdevOps, IoChannel, IoDevice, IoType, Thread, Uuid,
 };
 
 /// Wrapper for SPDK `spdk_bdev` structure and the related API.
@@ -46,6 +46,31 @@ impl<BdevData> Bdev<BdevData>
 where
     BdevData: BdevOps,
 {
+    /// Returns an action that completes asynchronous SPDK bdev destruction.
+    ///
+    /// # Safety
+    ///
+    /// The returned [`BdevDestructCompletion`] captures a raw pointer to the underlying
+    /// `spdk_bdev` together with a function that frees the owning container.
+    /// It must be completed exactly once, from the I/O device unregister callback
+    ///  (i.e. after every I/O channel has been torn down)
+    /// of a bdev whose `destruct()` returned `BdevDestruct::Async`. Completing it more
+    /// than once, or while the bdev is still in use, is a use-after-free.
+    pub unsafe fn async_destruct_completion(&self) -> BdevDestructCompletion {
+        unsafe fn drop_container<BdevData>(context: *mut c_void)
+        where
+            BdevData: BdevOps,
+        {
+            drop(Box::from_raw(context as *mut Container<BdevData>));
+        }
+
+        BdevDestructCompletion {
+            bdev: self.as_inner_ptr(),
+            context: self.as_inner_ptr().cast(),
+            drop_context: drop_container::<BdevData>,
+        }
+    }
+
     /// Registers this Bdev in SPDK.
     /// TODO: comment
     /// TODO: Error / result
@@ -406,11 +431,7 @@ where
     BdevData: BdevOps,
 {
     fn drop(&mut self) {
-        // Tell the Bdev data object to be cleaned up.
-        let pinned_data = unsafe { Pin::new_unchecked(&mut self.data) };
-        pinned_data.destruct();
-
-        // Drop the associated strings.
+        // Drop the associated strings after SPDK destruction is complete.
         unsafe {
             CString::from_raw(self.bdev.name);
             CString::from_raw(self.bdev.product_name);

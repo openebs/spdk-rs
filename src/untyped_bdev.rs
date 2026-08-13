@@ -1,5 +1,5 @@
 ///! Definition of untyped Bdev alias and related types.
-use crate::{Bdev, BdevIo, BdevOps, IoChannel, IoDevice, IoType};
+use crate::{Bdev, BdevDestruct, BdevIo, BdevOps, IoChannel, IoDevice, IoType};
 use std::pin::Pin;
 
 /// An alias for a Bdev whose type is unknown or not important.
@@ -12,7 +12,9 @@ impl BdevOps for () {
     type BdevData = ();
     type IoDev = ();
 
-    fn destruct(self: Pin<&mut Self>) {}
+    fn destruct(self: Pin<&mut Self>) -> BdevDestruct {
+        BdevDestruct::Sync
+    }
 
     fn submit_request(&self, _chan: IoChannel<Self::ChannelData>, _bio: BdevIo<Self::BdevData>) {
         unreachable!()

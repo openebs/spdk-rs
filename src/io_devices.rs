@@ -7,7 +7,8 @@ use std::{pin::Pin, ptr::NonNull};
 
 use crate::{
     ffihelper::IntoCString,
-    libspdk::{spdk_io_device_register, spdk_io_device_unregister},
+    libspdk::{spdk_bdev_destruct_done, spdk_io_device_register, spdk_io_device_unregister},
+    BdevDestructCompletion,
 };
 
 /// Abstraction over SPDK concept of I/O device.
@@ -16,10 +17,11 @@ pub trait IoDevice: Sized {
     /// device.
     type ChannelData;
 
-    /// Called during device unregisration process to allow the client code
-    /// to do a clean up.
-    /// The default implementation does nothing.
-    fn unregister_callback(&self) {}
+    /// Called after all I/O channels have been destroyed during device
+    /// unregistration. The default implementation performs no action.
+    fn unregister_callback(self: Pin<&mut Self>) -> Option<BdevDestructCompletion> {
+        None
+    }
 
     /// Called to create a new per-core I/O channel data instance.
     fn io_channel_create(self: Pin<&mut Self>) -> Self::ChannelData;
@@ -145,5 +147,10 @@ unsafe extern "C" fn inner_io_device_unregister_cb<Dev>(ctx: *mut c_void)
 where
     Dev: IoDevice,
 {
-    from_io_device_id::<Dev>(ctx).unregister_callback();
+    let completion = from_io_device_id::<Dev>(ctx).unregister_callback();
+
+    if let Some(completion) = completion {
+        spdk_bdev_destruct_done(completion.bdev, 0);
+        (completion.drop_context)(completion.context);
+    }
 }

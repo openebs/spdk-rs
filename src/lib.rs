@@ -61,7 +61,7 @@ pub use crate::{
         BdevModule, BdevModuleBuild, BdevModuleBuilder, WithModuleConfigJson, WithModuleFini,
         WithModuleGetCtxSize, WithModuleInit,
     },
-    bdev_ops::BdevOps,
+    bdev_ops::{BdevDestruct, BdevDestructCompletion, BdevOps},
     cpu_cores::{Core, CoreIterator, Cores, RoundRobinCoreSelector},
     dma::{DmaBuf, DmaError},
     error::{spdk_error, SpdkError, SpdkResult},
