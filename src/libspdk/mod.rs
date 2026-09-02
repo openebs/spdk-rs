@@ -83,3 +83,5 @@ impl_zeroed_default!(spdk_cpuset);
 impl_zeroed_default!(spdk_nvme_cmd);
 impl_zeroed_default!(spdk_nvme_transport_id);
 impl_zeroed_default!(spdk_uuid);
+impl_zeroed_default!(spdk_subsystem_depend);
+impl_zeroed_default!(spdk_subsystem);

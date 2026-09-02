@@ -188,6 +188,8 @@ fn configure_spdk() -> Result<LibraryConfig, Error> {
         "spdk_event_vmd",
         "spdk_nvmf",
         "spdk_util",
+        "spdk_ublk",
+        "spdk_event_ublk",
     ])?;
 
     spdk_lib.find_lib("spdk_syslibs")?;
@@ -298,6 +300,7 @@ fn main() {
         .clang_args(clang_args)
         .header("wrapper.h")
         .formatter(bindgen::Formatter::Rustfmt)
+        .allowlist_function(".*ublk.*")
         .allowlist_function(".*.aio.*")
         .allowlist_function("^accel.*")
         .allowlist_function(".*.crypto_disk.*")
