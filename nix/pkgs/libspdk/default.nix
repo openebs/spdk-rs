@@ -92,8 +92,8 @@ let
   # Derivation attributes
   #
   spdk = rec {
-    rev = "bc57f3ea7933b0965c09e9d751c21a3968c6cc11";
-    sha256 = "sha256-BCQtK0dSVqHFUhX/lKCi9+nne6BtHuj25YsKQxuBUbo=";
+    rev = "652eab219053d952e46efb5fdfbb63f35ec1063d";
+    sha256 = "sha256-dOWtVtafTBmDtAOQRaLrcpEbNHZLZDjZjTKj7wF++uQ=";
     pname = "libspdk${nameSuffix}";
     version = "25.05-${lib.substring 0 7 rev}";
     name = "${pname}-${version}";
