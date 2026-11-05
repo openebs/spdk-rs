@@ -52,26 +52,6 @@ fn get_target_dir() -> PathBuf {
     p
 }
 
-/// Returns nightly rustfmt path, if it can be found. Returns None otherwise.
-fn rust_fmt_nightly() -> Option<PathBuf> {
-    match env::var_os("RUST_NIGHTLY_PATH") {
-        Some(s) => {
-            let mut p = PathBuf::from(s);
-            p.push("bin");
-            p.push("rustfmt");
-            Some(p)
-        }
-        None => {
-            let mut cmd = std::process::Command::new("rustup");
-            cmd.args(["which", "rustfmt", "--toolchain=nightly"]);
-
-            build_helpers::run_command(&mut cmd, "rustup", None)
-                .ok()
-                .and_then(|r| r.1.first().map(PathBuf::from))
-        }
-    }
-}
-
 /// Returns absolute path for SPDK library.
 fn get_spdk_path() -> Result<PathBuf, Error> {
     let spdk_path = match env::var_os("SPDK_ROOT_DIR") {
@@ -360,13 +340,6 @@ fn main() {
         .size_t_is_usize(false)
         .generate_inline_functions(true)
         .parse_callbacks(Box::new(MacroCallback { macros }));
-
-    // Use nightly rustfmt if it is possible.
-    let bindings = if let Some(rust_fmt) = rust_fmt_nightly() {
-        bindings.with_rustfmt(rust_fmt)
-    } else {
-        bindings
-    };
 
     #[cfg(target_arch = "x86_64")]
     let bindings = bindings.clang_arg("-march=nehalem");
