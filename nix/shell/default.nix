@@ -1,5 +1,6 @@
 { sources
 , pkgs
+, src-root
 , rust ? "stable"
 , spdk ? "develop"
 , spdk-path ? null
@@ -8,7 +9,7 @@
 let
   rustCfg = import ./rust.nix { inherit pkgs; inherit sources; inherit rust; };
   spdkCfg = import ./spdk.nix { inherit pkgs; inherit spdk; inherit spdk-path; };
-  ciCfg = import ./ci.nix { inherit pkgs; };
+  preCommitCfg = import ./pre-commit.nix { inherit pkgs src-root; };
 in
 rec {
   # fortify does not work with -O0 which is used by spdk when --enable-debug
@@ -20,7 +21,7 @@ rec {
   ]
   ++ rustCfg.buildInputs
   ++ spdkCfg.buildInputs
-  ++ ciCfg.buildInputs
+  ++ preCommitCfg.buildInputs
   ++ cfg.buildInputs;
 
   LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
@@ -28,7 +29,7 @@ rec {
   shellHook = ''
     echo "Running shell hooks..."
   ''
-  + ciCfg.shellHook
+  + preCommitCfg.shellHook
   + rustCfg.shellHook
   + rustCfg.shellInfoHook
   + spdkCfg.shellHook

@@ -15,6 +15,7 @@ let
   shellAttrs = import ./nix/shell (args // {
     inherit sources;
     inherit pkgs;
+    src-root = toString ./.;
 
     cfg = {
       buildInputs = [ ];
