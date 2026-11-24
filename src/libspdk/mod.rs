@@ -11,6 +11,16 @@ use std::os::raw::c_char;
 #[cfg(target_os = "linux")]
 include!(concat!(env!("OUT_DIR"), "/libspdk.rs"));
 
+/// `struct spdk_nvme_cdata_oncs` (blocklisted in build.rs): a 16-bit ONCS bit
+/// mask. bindgen would emit it as `repr(align)`, which is not allowed inside
+/// the packed `spdk_nvmf_transport_opts`.
+#[cfg(target_os = "linux")]
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
+pub struct spdk_nvme_cdata_oncs {
+    pub raw: u16,
+}
+
 // In order to IDE to work properly with SPDK definitions on non-Linux platform,
 // one can copy generated bindings (libspdk.rs) from a Linux target and put them
 // to .pregenerated directory.
