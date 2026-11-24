@@ -92,10 +92,10 @@ let
   # Derivation attributes
   #
   spdk = rec {
-    rev = "bc57f3ea7933b0965c09e9d751c21a3968c6cc11";
-    sha256 = "sha256-BCQtK0dSVqHFUhX/lKCi9+nne6BtHuj25YsKQxuBUbo=";
+    rev = "8d81acc28ea4b2b3680029478c43991918c6c600";
+    sha256 = "sha256-rvM3UoIFyzBINlnON6flfbF5cEY9t0SC9fqc9PYXwGQ=";
     pname = "libspdk${nameSuffix}";
-    version = "25.05-${lib.substring 0 7 rev}";
+    version = "26.05-${lib.substring 0 7 rev}";
     name = "${pname}-${version}";
   };
 
@@ -131,6 +131,9 @@ let
       udev
       utillinux
       pkgs.python3Packages.pyelftools
+      # SPDK 26.05 generates RPC code at build time (scripts/genrpc.py).
+      pkgs.python3Packages.jinja2
+      pkgs.python3Packages.tabulate
     ] ++ extraBuildInputs;
 
     buildInputs = [
