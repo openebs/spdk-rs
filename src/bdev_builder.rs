@@ -78,6 +78,7 @@ where
             get_spin_time: None,
             get_module_ctx: Some(inner_bdev_get_module_ctx::<BdevData>),
             get_memory_domains: None,
+            get_memory_domain_types: None,
             dump_device_stat_json: None,
             reset_device_stat: None,
             accel_sequence_supported: None,
@@ -170,13 +171,11 @@ where
                 blocklen: self.blocklen.expect("Bdeb block length must be set"),
                 phys_blocklen: Default::default(),
                 blockcnt: self.blockcnt.expect("Bdeb block count must be set"),
-                split_on_write_unit: Default::default(),
                 write_unit_size: Default::default(),
                 acwu: Default::default(),
                 required_alignment: self
                     .required_alignment
                     .expect("Bdev required alignment must be set"),
-                split_on_optimal_io_boundary: Default::default(),
                 optimal_io_boundary: Default::default(),
                 max_segment_size: Default::default(),
                 max_num_segments: Default::default(),
@@ -187,30 +186,25 @@ where
                 max_rw_size: Default::default(),
                 uuid: self.uuid.unwrap_or_else(Uuid::generate).into_raw(),
                 md_len: Default::default(),
-                md_interleave: Default::default(),
                 dif_type: Default::default(),
                 dif_pi_format: Default::default(),
-                dif_is_head_of_md: Default::default(),
                 dif_check_flags: Default::default(),
-                zoned: Default::default(),
                 zone_size: Default::default(),
                 max_zone_append_size: Default::default(),
                 max_open_zones: Default::default(),
                 max_active_zones: Default::default(),
                 optimal_open_zones: Default::default(),
-                media_events: Default::default(),
                 ctratt: unsafe { zeroed() },
                 // setting nsid 1 as that's the only namespace we use today.
                 // can't do default() as that sets it to 0 which is invalid
                 nsid: 1,
                 reset_io_drain_timeout: SPDK_BDEV_RESET_IO_DRAIN_RECOMMENDED_VALUE as u16,
-                numa: spdk_bdev__bindgen_ty_1 {
-                    _bitfield_align_1: [0; 0],
-                    _bitfield_1: spdk_bdev__bindgen_ty_1::new_bitfield_1(0, 0),
-                },
+                // Bitfields (split_on_*, md_interleave, zoned, media_events, numa, ...)
+                // and reserved fields of SPDK 26.05 are zero-initialised below.
                 module: self.module.as_ptr(),
                 fn_table: null_mut::<spdk_bdev_fn_table>(),
                 internal: unsafe { zeroed() },
+                ..unsafe { zeroed() }
             },
             fn_table: self.fn_table.expect("Bdev function table must be set"),
             data: self.data.expect("Bdev data must be set"),

@@ -26,6 +26,8 @@ pub enum IoType {
     SeekData = libspdk::SPDK_BDEV_IO_TYPE_SEEK_DATA,
     Copy = libspdk::SPDK_BDEV_IO_TYPE_COPY,
     NvmeIovMd = libspdk::SPDK_BDEV_IO_TYPE_NVME_IOV_MD,
+    NvmeNssr = libspdk::SPDK_BDEV_IO_TYPE_NVME_NSSR,
+    WriteUncorrectable = libspdk::SPDK_BDEV_IO_TYPE_WRITE_UNCORRECTABLE,
     IoNumTypes = libspdk::SPDK_BDEV_NUM_IO_TYPES,
 }
 
