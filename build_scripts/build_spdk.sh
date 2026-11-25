@@ -11,7 +11,7 @@ LOG_DIR=$(realpath "$SCRIPT_DIR/../build_logs")
 export LOG_DIR
 
 export SPDK_ROOT_DIR=${SPDK_ROOT_DIR:-""}           # Root of SPDK sources.
-export SPDK_VERSION="25.05"                         # SPDK version (currently, informative only).
+export SPDK_VERSION="26.05"                         # SPDK version (currently, informative only).
 
 export BUILD_TYPE="debug"
 export TARGET_PLATFORM="x86_64-unknown-linux-gnu"
@@ -46,7 +46,6 @@ CONFIGURE_ARGS=(
     "--with-uring"
     "--without-uring-zns"
     "--without-nvme-cuse"
-    "--without-fuse"
     "--disable-unit-tests"
     "--disable-tests"
     "--with-rdma"
@@ -313,8 +312,11 @@ function cmd_configure() {
 
     msg_info "Running configure ..."
 
-    # Configure script needs asm (AS shell var) to be defined.
-    export AS=nasm
+    # Newer isa-l/isa-l-crypto configure scripts detect nasm themselves only
+    # when AS is empty. If AS is set (e.g. AS=nasm, or AS=as exported by a nix
+    # shell), they probe it with GNU as syntax, which nasm rejects, and fail with
+    # "No modern nasm found".
+    unset AS
 
     silent_pushd "$SPDK_ROOT_DIR"
     exec_tool "configure" ./configure "$CFG_CMD_ARGS"

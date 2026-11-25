@@ -229,9 +229,9 @@ Instead of relying on `build_spdk.sh` script, one can configure and make
 SPDK manually:
 ```
 cd <spdk_path>
-AS=nasm ./configure --enable-debug --target-arch=nehalem --without-shared \
+./configure --enable-debug --target-arch=nehalem --without-shared \
     --without-crypto \
-    --without-nvme-cuse --without-fuse \
+    --without-nvme-cuse \
     --with-uring --without-uring-zns \
     --disable-unit-tests --disable-tests \
     --with-fio=$(realpath $(dirname $(which fio))/..)
@@ -339,9 +339,9 @@ Same as 22.09+ but with the following additionally:
 * FUSE must be disabled.
 
  ```
- AS=nasm ./configure --enable-debug --target-arch=nehalem --without-shared \
+ ./configure --enable-debug --target-arch=nehalem --without-shared \
      --without-crypto \
-     --without-nvme-cuse --without-fuse \
+     --without-nvme-cuse \
      --with-uring --without-uring-zns \
      --disable-unit-tests --disable-tests \
      --with-fio=$(realpath $(dirname $(which fio))/..)

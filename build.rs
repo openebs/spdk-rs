@@ -328,6 +328,13 @@ fn main() {
         .allowlist_var("^spdk.*")
         .trust_clang_mangling(false)
         .opaque_type("^spdk_nvme_ctrlr_data")
+        // bindgen sizes the alignment of a bitfield group from its widest field. Here the
+        // widest is 7 bits, so it emits `[u8; 0]` plus `#[repr(align(2))]` to match the
+        // uint16_t union, and a packed struct such as spdk_nvmf_transport_opts cannot
+        // contain a repr(align) type (E0588). Replaced by a plain definition in
+        // src/libspdk/mod.rs. spdk_nvme_cdata_fuses has `rsvd: 15`, so it gets a u16
+        // alignment without repr(align) and is used as generated.
+        .blocklist_type("^spdk_nvme_cdata_oncs.*")
         .opaque_type("^spdk_nvme_feat_async_event_configuration.*")
         .opaque_type("^spdk_nvmf_fabric_connect.*")
         .opaque_type("^spdk_nvmf_fabric_prop.*")
