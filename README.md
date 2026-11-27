@@ -157,7 +157,7 @@ run the following commands:
 ```
 git clone git@github.com:openebs/spdk.git
 cd spdk
-git checkout -t origin/v24.01.x-mayastor
+git checkout -t origin/v25.05.x-mayastor
 git submodule update --recursive --init
 ```
 
